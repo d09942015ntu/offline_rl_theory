@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Callable, List, Tuple, Dict
 from kernel_funcs import gen_d_finite_kernel_function_example
+from environment_1 import gen_dataset
 
 
 ##############################################################################
@@ -27,15 +28,6 @@ def build_gram_matrix(
         Sh, Ah,
         kernel_fn,
 ) -> np.ndarray:
-    """
-    Construct the Gram matrix K for data X under the given kernel function.
-    K[i,j] = kernel_fn(X[i], X[j]).
-    """
-    #n = len(X)
-    #K = np.zeros((n, n))
-    #for i in range(n):
-    #    for j in range(n):
-    #        K[i, j] = kernel_fn(X[i], X[j])
 
     N1 = len(Sh)
     # Build kernel matrix K of size NxN
@@ -52,36 +44,6 @@ def build_gram_matrix(
 ##############################################################################
 
 def fit_reward_function(D1, H, nu):
-    """
-    Learn the reward function parameter  (hat{theta}_h)  for  h in [H],
-    via the kernel ridge regression:
-
-        hat{theta}_h = arg min_theta  sum_{tau=1 to N1}
-                        [ r_h^tau - <phi(s'_h^tau,a'_h^tau), theta> ]^2
-                        + nu ||theta||^2_{H_k}
-
-    Parameters
-    ----------
-    D1 : list of lists
-        The labeled dataset. D1[h] is the list of (s,a,r) tuples for step h.
-        For example, D1[h] might be an array of shape (N1, 3) if each row is
-        (s'_h^tau, a'_h^tau, r_h^tau).
-        In practice, you might structure it so that each row is a dictionary
-        or a custom object.
-    H : int
-        Horizon.
-    nu : float
-        Regularization hyperparameter (in paper, 'nu').
-    kernel_params : dict or None
-        Additional kernel parameters if needed.
-
-    Returns
-    -------
-    theta_hat : list of parameters in RKHS
-        For h in [1..H], we store the learned parameter vector (or function).
-        In an actual kernel-based setting, this might store e.g. dual weights
-        rather than a finite-dimensional "theta".
-    """
     kernel_function = gen_d_finite_kernel_function_example()
     # We'll store a representation for each horizon step h.
     theta_hat = [None] * H
@@ -102,20 +64,6 @@ def fit_reward_function(D1, H, nu):
         Ah = np.array(Ah)
         Rh = np.array(Rh)
 
-        # In a typical kernel ridge regression approach,
-        #   alpha = (K + nu I)^(-1) * R
-        #   where K_ij = kernel_function( z_i, z_j ),
-        #   and z_i = (s_h^i, a_h^i).
-        # For demonstration, let's just store alpha as "theta_hat[h]".
-
-        #N1 = len(Rh)
-        ## Build kernel matrix K of size NxN
-        #K = np.zeros((N1, N1))
-        #for i in range(N1):
-        #    zi = np.hstack([Sh[i], Ah[i]])  # combine s,a if needed
-        #    for j in range(N1):
-        #        zj = np.hstack([Sh[j], Ah[j]])
-        #        K[i, j] = kernel_function(zi, zj)
         K, N1 = build_gram_matrix(Sh,Ah,kernel_function)
 
         # Solve alpha_h = (K + nu I)^{-1} * Rh
@@ -123,10 +71,6 @@ def fit_reward_function(D1, H, nu):
         A = K + nu * np.eye(N1)
         alpha_h = np.linalg.inv(A).dot(Rh)
 
-        # We'll store the alpha vector.  The "true" parameter in the paper
-        # is an element of the RKHS, but we can represent it by alpha + data support.
-        # So let's store (alpha_h, [z1,...,zN]) to define the function by
-        #    r_hat_h(z) = sum_{i=1 to N1} alpha_h[i] * kernel_function(z_i, z).
         Z_data = []
         for i in range(N1):
             Z_data.append(np.hstack([Sh[i], Ah[i]]))
@@ -171,24 +115,6 @@ def build_pessimistic_reward(theta_hat, D1, beta_h, H, lambda_operator_dict):
 ##############################################################################
 
 def relabel_unlabeled_data(D2, theta_tilde, H):
-    """
-    Take unlabeled dataset (only s,a pairs, no reward), and fill in reward
-    using the pessimistic reward function tilde{r}_h.
-
-    D2 : list of lists
-        D2[h] = list of (s_h, a_h) for step h.
-    theta_tilde : list
-        The list of "pessimistic" parameters for each h, as from build_pessimistic_reward.
-    H : int
-        Horizon.
-    kernel_params : dict
-        kernel parameters if needed.
-
-    Returns
-    -------
-    D2_tilde : list of lists
-        Same structure as D2, but each element now is (s_h, a_h, r_tilde_h).
-    """
     D2_tilde = [[] for _ in range(H)]
     kernel_function = gen_d_finite_kernel_function_example()
 
@@ -225,15 +151,6 @@ def relabel_unlabeled_data(D2, theta_tilde, H):
 ##############################################################################
 
 def combine_datasets(D1, D2_tilde, H):
-    """
-    Combine labeled dataset (D1) and the newly labeled dataset (D2_tilde).
-    Return Dtheta = D1 + D2_tilde for each step h.
-
-    D1[h] might look like: [(s,a,r), ... ] for h in [0..H-1]
-    D2_tilde[h] might look like: [(s,a,r_tilde), ... ]
-
-    Output Dtheta[h] is the union (concatenation).
-    """
     Dtheta = [[] for _ in range(H)]
     for h in range(H):
         # just concatenate
@@ -246,30 +163,6 @@ def combine_datasets(D1, D2_tilde, H):
 ##############################################################################
 
 def pevi_kernel_approx(Dtheta, H, B, lamda):
-    """
-    Implement the kernel-based PEVI with data splitting as described
-    in Algorithm 2 (or the version in Appendix) from the paper.
-
-    Here we only give a skeleton:
-
-    1) Randomly split Dtheta into H disjoint subsets of equal size:
-         Dtheta = union_{h=1 to H}  of (widetilde{D}_h)
-    2) For h = H down to 1:
-         - Use (widetilde{D}_h) to estimate   (widehat{mathcal{B}}_h widehat{V}_{h+1})
-         - Build the bonus function Gamma_h(...)  = B * ||phi(z)||_{(Lambda^widetilde{D}_h)^{-1}}
-         - widehat{Q}_h^... = ...
-         - widehat{V}_h^... = ...
-    3) Return the final policy pi_hat.
-
-    Note: For large-scale kernel RL, one typically needs approximations
-          or a finite feature map. This skeleton simply illustrates the logic.
-
-    """
-    # Step 1: Data splitting
-    # We suppose Dtheta[h] is the data for step h. Then we flatten it
-    # to build a single list and shuffle, then chunk it into H subsets.
-
-    # Flatten all (h-step) data:
     flat_data = []
     for h_ in range(H):
         for row in Dtheta[h_]:
@@ -345,44 +238,6 @@ def pevi_kernel_approx(Dtheta, H, B, lamda):
 
 def data_sharing_kernel_approx(D1, D2,
                                H, beta_h_func, delta, B, nu, lamda):
-    """
-    Implementation of Algorithm 1: Data Sharing, Kernel Approximation.
-
-    Parameters
-    ----------
-    D1 : list of lists
-        Labeled dataset.  D1[h] = list of (s,a,r) for each step h.
-    D2 : list of lists
-        Unlabeled dataset. D2[h] = list of (s,a) for each step h.
-    H : int
-        Horizon.
-    beta_h_func : function
-        A function that returns the beta_h(delta) for each step h, i.e.
-        beta_h_func(h) -> float
-    delta : float
-        Confidence parameter.
-    B : float
-        Scale for the 'bonus' in the PEVI step.
-    nu : float
-        Regularization parameter in kernel ridge regression.
-    lamda : float
-        The parameter 'lambda' (different from 'nu') used in the paper
-        for the PEVI step.
-    kernel_params : dict or None
-        Additional kernel details if needed.
-
-    Returns
-    -------
-    pi_hat : function
-        The learned policy from Algorithm 1.
-
-    Steps:
-    1) Fit reward function from D1 (kernel ridge).
-    2) Construct pessimistic reward tilde{r} using eqn (6).
-    3) Relabel D2 with tilde{r}.
-    4) Combine to get D^theta = D1 + D2^tilde.
-    5) Run kernel-based PEVI on D^theta to get pi_hat.
-    """
     # 1) Learn the reward function \hat{\theta}_h
     theta_hat = fit_reward_function(D1, H, nu)
 
@@ -410,48 +265,21 @@ def data_sharing_kernel_approx(D1, D2,
 
     return pi_hat
 
+def beta_h_func(h_in):
+    return 1.0  # placeholder
 
 ##############################################################################
 # Example main code
 ##############################################################################
 
 if __name__ == "__main__":
-    # Suppose we have:
-    #   H=3 horizon
-    #   We have D1 (labeled) and D2 (unlabeled) with a small amount of data.
-
-    # Here, let's just mock them up:
     H = 3
-
-    # D1[h] is a list of (s_h, a_h, r_h)
-    # We'll do small arrays for illustration:
-    D1 = [[] for _ in range(H)]
-    # E.g., for h=0, have a few (s,a,r)
-    D1[0] = [
-        (np.array([0.1, 0.2]), np.array([0.0]), 0.5),
-        (np.array([0.4, 0.1]), np.array([1.0]), 0.7),
-    ]
-    D1[1] = [
-        (np.array([0.9, 0.8]), np.array([0.0]), 0.3),
-    ]
-    D1[2] = [
-        (np.array([0.2, 0.3]), np.array([1.0]), 0.9),
-    ]
-
-    # D2[h] is a list of (s_h, a_h) with no r
-    D2 = [[] for _ in range(H)]
-    D2[0] = [
-        (np.array([0.7, 0.2]), np.array([0.0])),
-    ]
-    D2[1] = []
-    D2[2] = [
-        (np.array([0.8, 0.8]), np.array([1.0])),
-    ]
+    N1 = 30
+    N2 = 30
 
 
+    D1, D2 = gen_dataset(N1=N1,N2=N2,H=H)
     # Suppose we define beta_h(delta) = some constant for each h
-    def beta_h_func(h_in):
-        return 1.0  # placeholder
 
 
     delta = 0.1
@@ -467,8 +295,4 @@ if __name__ == "__main__":
         B, nu, lamda,
     )
 
-    # pi_hat is a function that, given (h, s), returns an action (for discrete),
-    # or a distribution. Since this is a simple skeleton, pi_hat() just returns None.
-
-    # You now have a policy pi_hat that you can evaluate in your environment.
     print("Learned policy pi_hat is now available.")

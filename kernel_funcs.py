@@ -1,4 +1,5 @@
 import numpy as np
+from functools import reduce
 
 
 def gen_d_finite_kernel_function(kernel_params=None):
@@ -28,22 +29,29 @@ def gen_d_finite_kernel_function(kernel_params=None):
     if not (len(eigenvalues) == d and len(basis_functions) == d):
         raise ValueError("Mismatch in the dimensions of eigenvalues or basis functions.")
 
+    def phi_func(z):
+        results=[[bf(zi) for zi in z] for bf in basis_functions]
+        results = np.array(reduce(lambda a,b:a+b,results))
+        return results
+
     def kernel_func(z1,z2) :
         # Ensure z1 and z2 are 2D for consistent handling
-        z1 = np.atleast_2d(z1)
-        z2 = np.atleast_2d(z2)
+        z1 = phi_func(z1)
+        z2 = phi_func(z2)
 
         # Initialize the kernel value
         kernel_value = 0
 
         # Compute the kernel using the finite spectral decomposition
-        for i in range(d):
-            psi_i_z1 = np.apply_along_axis(basis_functions[i], 1, z1)
-            psi_i_z2 = np.apply_along_axis(basis_functions[i], 1, z2)
-            kernel_value += eigenvalues[i] * np.dot(psi_i_z1, psi_i_z2.T)
+        #for i in range(d):
+        #    psi_i_z1 = np.apply_along_axis(basis_functions[i], 1, z1)
+        #    psi_i_z2 = np.apply_along_axis(basis_functions[i], 1, z2)
+        #    kernel_value += eigenvalues[i] * np.dot(psi_i_z1, psi_i_z2.T)
 
-        return kernel_value
-    return kernel_func
+        result = np.dot(z1,z2)
+        return result
+
+    return kernel_func, phi_func
 
 def gen_d_finite_kernel_function_example():
 
@@ -80,7 +88,7 @@ if __name__ == "__main__":
     z2 = np.array([[5, 6], [7, 8]])
 
     # Compute the kernel matrix
-    kernel_func = gen_d_finite_kernel_function_example()
+    kernel_func,phi_func = gen_d_finite_kernel_function_example()
     kernel_matrix = kernel_func(z1,z2)
     print("Kernel Matrix:")
     print(kernel_matrix)

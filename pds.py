@@ -4,7 +4,7 @@ from typing import Callable, List, Tuple, Dict
 from sympy import Lambda
 
 from kernel_funcs import gen_d_finite_kernel_function_example
-from environment_1 import gen_dataset
+from environment_1 import gen_dataset, gen_r_sn
 
 
 ##############################################################################
@@ -138,7 +138,7 @@ def combine_datasets(D1, D2_tilde, H):
 # Step 5: Run the PEVI algorithm with kernel function approximation + data splitting
 ##############################################################################
 
-def pevi_kernel_approx(Dtheta, H, B, lamda):
+def pevi_kernel_approx(Dtheta, H, B, lamda, Aspace):
     #flat_data = []
     #for h_ in range(H):
     #    for row in Dtheta[h_]:
@@ -195,7 +195,7 @@ def pevi_kernel_approx(Dtheta, H, B, lamda):
             Rh_p_V = Rh
 
         else:
-            Rh_p_V = Rh + Vhat[h+1](Sh1)
+            Rh_p_V =   [r+Vhat[h+1](s) for r,s in zip(Rh,Sh1)]
 
         theta_hat_h = np.dot(Ldh_inv, np.dot(Zh.T, Rh_p_V))
 
@@ -203,16 +203,15 @@ def pevi_kernel_approx(Dtheta, H, B, lamda):
         #      widehat{mathcal{B}}_h( widehat{V}_{h+1} ).
         # 2.2: Define bonus Gamma_h, etc.
         # For demonstration, we do a no-op assignment:
-        Qhat_h_func = lambda z : np.clip(np.dot(theta_hat_h, z) - B * np.dot(np.dot(z, Ldh_inv), z) ** 0.5,0, H-h)
+        def Qhat_h_func(s,a):
+            z = np.concatenate([s,a])
+            return np.clip(np.dot(theta_hat_h, z) - B * np.dot(np.dot(z, Ldh_inv), z) ** 0.5,0, H-h)
 
         Qhat[h] = Qhat_h_func
 
         def Vhat_h_func(s):
-            # argmax wrt a: Qhat_h(s,a)
-            # For discrete action space, you'd do something like:
-            # best_val = max_{a in A} Qhat_h_func(s,a).
-            # If continuous, you might do a separate approach.
-            return 0.0
+            max_q, _ = max([(Qhat_h_func(s,a),a) for a in Aspace],key=lambda x:x[0])
+            return max_q
 
         Vhat[h] = Vhat_h_func
         Sh1 = Sh
@@ -221,11 +220,10 @@ def pevi_kernel_approx(Dtheta, H, B, lamda):
     # For each h, pi_hat_h(a|s) = argmax_a Qhat_h(s,a).
     # We'll define a simple function that returns that greedy action.
     def policy_fn(h, s):
-        # in discrete action space:
-        #   best_a = argmax_{a} Qhat[h](s,a)
-        #   return best_a
-        # For demonstration, just return None or some placeholder.
-        return None
+
+        Qhat_h_func = Qhat[h]
+        _, max_a  = max([(Qhat_h_func(s, a), a) for a in Aspace], key=lambda x: x[0])
+        return max_a
 
     pi_hat = policy_fn
     return pi_hat
@@ -236,7 +234,7 @@ def pevi_kernel_approx(Dtheta, H, B, lamda):
 ##############################################################################
 
 def data_sharing_kernel_approx(D1, D2,
-                               H, beta_h_func, delta, B, nu, lamda):
+                               H, beta_h_func, delta, B, nu, lamda, Aspace):
     # 1) Learn the reward function \hat{\theta}_h
     theta_hat = fit_reward_function(D1, H, nu)
 
@@ -247,9 +245,9 @@ def data_sharing_kernel_approx(D1, D2,
     for h in range(H):
         lambda_operator_dict[h] = None  # placeholder
 
-    beta_h=0.5  #TODO
+      #TODO
 
-    theta_tilde_fn = build_pessimistic_reward(theta_hat, D1, beta_h, H,
+    theta_tilde_fn = build_pessimistic_reward(theta_hat, D1, beta_h_func, H,
                                            lambda_operator_dict)
 
     # 3) Relabel unlabeled data D2 with tilde{theta}
@@ -259,13 +257,21 @@ def data_sharing_kernel_approx(D1, D2,
     Dtheta = combine_datasets(D1, D2_tilde, H)
 
     # 5) Learn the policy from the relabeled dataset using PEVI (Algorithm 2)
-    pi_hat = pevi_kernel_approx(Dtheta, H, B, lamda)
+    pi_hat = pevi_kernel_approx(Dtheta, H, B, lamda, Aspace)
 
     return pi_hat
 
-def beta_h_func(h_in):
-    return 1.0  # placeholder
 
+def evaluate(pi_func, H):
+    R1 = 0
+    rng = np.random.RandomState(0)
+    for i in range(100):
+        sn = [1, 0, 0]
+        for h in range(H):
+            a = pi_func(h, sn)
+            r, sn = gen_r_sn(sn, a, rng)
+            R1 += r
+    return R1
 ##############################################################################
 # Example main code
 ##############################################################################
@@ -273,24 +279,31 @@ def beta_h_func(h_in):
 if __name__ == "__main__":
     H = 3
     N1 = 30
-    N2 = 30
-
-
-    D1, D2 = gen_dataset(N1=N1,N2=N2,H=H)
-    # Suppose we define beta_h(delta) = some constant for each h
-
+    N2 = 3
 
     delta = 0.1
-    B = 2.0
+    B = 0.05
     nu = 0.01
     lamda = 1.0
 
-    # Run the main routine:
-    pi_hat = data_sharing_kernel_approx(
-        D1, D2,
-        H,
-        beta_h_func, delta,
-        B, nu, lamda,
-    )
+    beta_h_func = 0.05
+    rng = np.random.RandomState(0)
 
-    print("Learned policy pi_hat is now available.")
+
+    def pi_rand(h, s):
+        return Aspace[rng.choice(range(len(Aspace)))]
+
+
+    for N1 in [1,2,3]:
+        for N2 in [1,2,3]:
+
+            D1, D2, Aspace = gen_dataset(N1=N1,N2=N2,H=H,seed=0)
+
+            pi_hat = data_sharing_kernel_approx(
+                D1, D2,
+                H,
+                beta_h_func, delta,
+                B, nu, lamda, Aspace
+            )
+
+            print(f"N1={N1},N2={N2},R1={evaluate(pi_func=pi_hat,H=H)},R_rand={evaluate(pi_func=pi_rand,H=H)}")

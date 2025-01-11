@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def gen_d_finite_kernel_function(kernel_params=None):
     """
     Implements a d-finite spectrum kernel.
@@ -46,16 +47,24 @@ def gen_d_finite_kernel_function(kernel_params=None):
 
 def gen_d_finite_kernel_function_example():
 
-    d = 3
-    eigenvalues = [1.0, 0.5, 0.2]
+    eigenvalues = [1.0, 0.8, 0.5, 0.3, 0.1, 0.08]
+    d = len(eigenvalues)
 
-    def psi_1(z): return np.sin(np.sum(z))
+    def psi_11(z): return np.sin(np.sum(z))
 
-    def psi_2(z): return np.cos(np.sum(z))
+    def psi_21(z): return np.cos(np.sum(z))
 
-    def psi_3(z): return np.sum(z ** 2)
+    def psi_12(z): return np.sin(np.sum(2*z))
 
-    basis_functions = [psi_1, psi_2, psi_3]
+    def psi_22(z): return np.cos(np.sum(2*z))
+
+    def psi_31(z): return np.sin(np.sum(3*z))
+
+    def psi_32(z): return np.cos(np.sum(3*z))
+
+    #def psi_3(z): return np.sum(z ** 2)
+
+    basis_functions = [psi_11, psi_12, psi_21, psi_22, psi_31, psi_32]
 
     kernel_params = {
         'd': d,

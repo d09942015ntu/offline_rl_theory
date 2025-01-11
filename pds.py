@@ -12,7 +12,7 @@ from kernel_funcs import gen_d_finite_kernel_function_example
 
 
 
-def phi(z, dataset=None, kernel_params=None):
+def phi(z, dataset=None):
     """
     'Feature map' from z to the RKHS. In many places you don't need to
     explicitly store phi(...) if you do kernel tricks. If you do need
@@ -24,26 +24,34 @@ def phi(z, dataset=None, kernel_params=None):
 
 
 def build_gram_matrix(
-        X: List[np.ndarray],  # list of data points in R^d
-        kernel_fn: Callable[[np.ndarray, np.ndarray], float],
-        **kernel_kwargs
+        Sh, Ah,
+        kernel_fn,
 ) -> np.ndarray:
     """
     Construct the Gram matrix K for data X under the given kernel function.
     K[i,j] = kernel_fn(X[i], X[j]).
     """
-    n = len(X)
-    K = np.zeros((n, n))
-    for i in range(n):
-        for j in range(n):
-            K[i, j] = kernel_fn(X[i], X[j], **kernel_kwargs)
-    return K
+    #n = len(X)
+    #K = np.zeros((n, n))
+    #for i in range(n):
+    #    for j in range(n):
+    #        K[i, j] = kernel_fn(X[i], X[j])
+
+    N1 = len(Sh)
+    # Build kernel matrix K of size NxN
+    K = np.zeros((N1, N1))
+    for i in range(N1):
+        zi = np.hstack([Sh[i], Ah[i]])  # combine s,a if needed
+        for j in range(N1):
+            zj = np.hstack([Sh[j], Ah[j]])
+            K[i, j] = kernel_fn(zi, zj)
+    return K, N1
 
 ##############################################################################
 # Step 1: Kernel Ridge Regression to learn reward function from labeled data
 ##############################################################################
 
-def fit_reward_function(D1, H, nu, kernel_params=None):
+def fit_reward_function(D1, H, nu):
     """
     Learn the reward function parameter  (hat{theta}_h)  for  h in [H],
     via the kernel ridge regression:
@@ -74,6 +82,7 @@ def fit_reward_function(D1, H, nu, kernel_params=None):
         In an actual kernel-based setting, this might store e.g. dual weights
         rather than a finite-dimensional "theta".
     """
+    kernel_function = gen_d_finite_kernel_function_example()
     # We'll store a representation for each horizon step h.
     theta_hat = [None] * H
 
@@ -99,14 +108,15 @@ def fit_reward_function(D1, H, nu, kernel_params=None):
         #   and z_i = (s_h^i, a_h^i).
         # For demonstration, let's just store alpha as "theta_hat[h]".
 
-        N1 = len(Rh)
-        # Build kernel matrix K of size NxN
-        K = np.zeros((N1, N1))
-        for i in range(N1):
-            zi = np.hstack([Sh[i], Ah[i]])  # combine s,a if needed
-            for j in range(N1):
-                zj = np.hstack([Sh[j], Ah[j]])
-                K[i, j] = kernel_function(zi, zj, kernel_params=kernel_params)
+        #N1 = len(Rh)
+        ## Build kernel matrix K of size NxN
+        #K = np.zeros((N1, N1))
+        #for i in range(N1):
+        #    zi = np.hstack([Sh[i], Ah[i]])  # combine s,a if needed
+        #    for j in range(N1):
+        #        zj = np.hstack([Sh[j], Ah[j]])
+        #        K[i, j] = kernel_function(zi, zj)
+        K, N1 = build_gram_matrix(Sh,Ah,kernel_function)
 
         # Solve alpha_h = (K + nu I)^{-1} * Rh
         # (In practice, might need numerical stability, etc.)
@@ -132,38 +142,6 @@ def fit_reward_function(D1, H, nu, kernel_params=None):
 ##############################################################################
 
 def build_pessimistic_reward(theta_hat, D1, beta_h, H, lambda_operator_dict):
-    """
-    Construct the pessimistic reward function from Eqn (6) in the paper:
-      tilde{r}_h^{ tilde{theta}_h }(s,a)
-        = max{ <hat{theta}_h, phi(s,a)> - beta_h * || Lambda_h^{-1/2} phi(s,a)||,  0 }
-
-    In practice, we implement this by storing the offset "penalty" for each (s,a).
-    But strictly, for a general kernel approach, we'd be representing
-    tilde{theta}_h in dual form as well.
-
-    Parameters
-    ----------
-    theta_hat : list
-        The list of (alpha_h, Z_data) from fit_reward_function(...).
-    D1 : list of lists
-        The labeled dataset (for forming the operator Lambda_h^{D1}).
-    beta_h : function or list
-        If beta_h is constant wrt h, you can provide a float; if it differs by h,
-        provide a list or function that returns the radius for each h.
-    H : int
-        Horizon.
-    lambda_operator_dict : dict
-        A precomputed dictionary of the form:
-          lambda_operator_dict[h] = (Lambda_h^{D1})^-1/2
-        if you explicitly form it.  Often in large-scale kernel methods, you do
-        not form it directly but rely on approximations.
-        This is a placeholder illustrating how you'd apply the penalty.
-
-    Returns
-    -------
-    theta_tilde : list
-        The new "pessimistic" parameters, i.e. each is (alpha_tilde_h, Z_data_tilde).
-    """
     theta_tilde = [None] * H
 
     for h in range(H):
@@ -192,7 +170,7 @@ def build_pessimistic_reward(theta_hat, D1, beta_h, H, lambda_operator_dict):
 # Step 3: Relabel unlabeled dataset D2 using tilde{theta}_h
 ##############################################################################
 
-def relabel_unlabeled_data(D2, theta_tilde, H, kernel_params=None):
+def relabel_unlabeled_data(D2, theta_tilde, H):
     """
     Take unlabeled dataset (only s,a pairs, no reward), and fill in reward
     using the pessimistic reward function tilde{r}_h.
@@ -227,7 +205,7 @@ def relabel_unlabeled_data(D2, theta_tilde, H, kernel_params=None):
             z_in = np.hstack([s, a])
             r_hat = 0.0
             for i_i, z_support in enumerate(Z_data_h):
-                r_hat += alpha_h[i_i] * kernel_function(z_support, z_in, kernel_params)
+                r_hat += alpha_h[i_i] * kernel_function(z_support, z_in)
             # Then subtract the penalty: beta_val * ||(Lambda_h^{D1})^-1/2 phi(...)||.
             # For demonstration, we do not code the exact norm. We'll do a placeholder:
             penalty = beta_val * 0.5  # placeholder, you'd compute the actual RKHS norm
@@ -267,7 +245,7 @@ def combine_datasets(D1, D2_tilde, H):
 # Step 5: Run the PEVI algorithm with kernel function approximation + data splitting
 ##############################################################################
 
-def pevi_kernel_approx(Dtheta, H, B, lamda, kernel_params=None):
+def pevi_kernel_approx(Dtheta, H, B, lamda):
     """
     Implement the kernel-based PEVI with data splitting as described
     in Algorithm 2 (or the version in Appendix) from the paper.
@@ -366,8 +344,7 @@ def pevi_kernel_approx(Dtheta, H, B, lamda, kernel_params=None):
 ##############################################################################
 
 def data_sharing_kernel_approx(D1, D2,
-                               H, beta_h_func, delta, B, nu, lamda,
-                               kernel_params=None):
+                               H, beta_h_func, delta, B, nu, lamda):
     """
     Implementation of Algorithm 1: Data Sharing, Kernel Approximation.
 
@@ -407,7 +384,7 @@ def data_sharing_kernel_approx(D1, D2,
     5) Run kernel-based PEVI on D^theta to get pi_hat.
     """
     # 1) Learn the reward function \hat{\theta}_h
-    theta_hat = fit_reward_function(D1, H, nu, kernel_params=kernel_params)
+    theta_hat = fit_reward_function(D1, H, nu)
 
     # 2) Construct the pessimistic reward function param tilde{theta}
     #    We need \Lambda_h^{D1}, i.e. the operator sum_{tau} phi(z_h^tau) phi(z_h^tau)^T + nu I
@@ -423,13 +400,13 @@ def data_sharing_kernel_approx(D1, D2,
                                            lambda_operator_dict)
 
     # 3) Relabel unlabeled data D2 with tilde{theta}
-    D2_tilde = relabel_unlabeled_data(D2, theta_tilde, H, kernel_params=kernel_params)
+    D2_tilde = relabel_unlabeled_data(D2, theta_tilde, H)
 
     # 4) Combine labeled & unlabeled
     Dtheta = combine_datasets(D1, D2_tilde, H)
 
     # 5) Learn the policy from the relabeled dataset using PEVI (Algorithm 2)
-    pi_hat = pevi_kernel_approx(Dtheta, H, B, lamda, kernel_params=kernel_params)
+    pi_hat = pevi_kernel_approx(Dtheta, H, B, lamda)
 
     return pi_hat
 
@@ -488,7 +465,6 @@ if __name__ == "__main__":
         H,
         beta_h_func, delta,
         B, nu, lamda,
-        kernel_params=None
     )
 
     # pi_hat is a function that, given (h, s), returns an action (for discrete),

@@ -4,7 +4,7 @@ from typing import Callable, List, Tuple, Dict
 from sympy import Lambda
 
 from kernel_funcs import gen_d_finite_kernel_function_example
-from environment_1 import gen_dataset, gen_r_sn
+from environment_1 import Environment1 #gen_dataset, gen_r_sn
 
 
 ##############################################################################
@@ -262,24 +262,24 @@ def data_sharing_kernel_approx(D1, D2,
     return pi_hat
 
 
-def evaluate(pi_func, H):
-    R1 = 0
-    rng = np.random.RandomState(0)
+def evaluate(env, pi_func):
+    R1 = []
     for i in range(100):
-        sn = [1, 0, 0]
-        for h in range(H):
+        env.reset_rng(i)
+        r1 = 0
+        sn =env.gen_init_states()
+        for h in range(env.H):
             a = pi_func(h, sn)
-            r, sn = gen_r_sn(sn, a, rng)
-            R1 += r
-    return R1
+            r, sn = env.gen_r_sn(sn, a)
+            r1 += r
+        R1.append(r1)
+    return np.average(R1)
 ##############################################################################
 # Example main code
 ##############################################################################
 
 if __name__ == "__main__":
-    H = 3
-    N1 = 30
-    N2 = 3
+    H = 20
 
     delta = 0.1
     B = 0.05
@@ -290,20 +290,21 @@ if __name__ == "__main__":
     rng = np.random.RandomState(0)
 
 
-    def pi_rand(h, s):
-        return Aspace[rng.choice(range(len(Aspace)))]
 
 
-    for N1 in [1,2,3]:
-        for N2 in [1,2,3]:
-
-            D1, D2, Aspace = gen_dataset(N1=N1,N2=N2,H=H,seed=0)
+    for n1 in range(1,5):
+        for n2 in range(0,5):
+            N1 = n1*2
+            N2 = n2*5
+            env = Environment1(H=H,seed=0)
+            D1, D2 = env.gen_dataset(N1=N1,N2=N2,H=H)
 
             pi_hat = data_sharing_kernel_approx(
                 D1, D2,
-                H,
+                env.H,
                 beta_h_func, delta,
-                B, nu, lamda, Aspace
+                B, nu, lamda, env.A
             )
-
-            print(f"N1={N1},N2={N2},R1={evaluate(pi_func=pi_hat,H=H)},R_rand={evaluate(pi_func=pi_rand,H=H)}")
+            def random_pi(h,s):
+                return env.random_pi()
+            print(f"N1={N1},N2={N2},R1={evaluate(env=env, pi_func=pi_hat):.3f},R_rand={evaluate(env=env, pi_func=random_pi):.3f}")

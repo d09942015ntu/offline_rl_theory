@@ -3,46 +3,100 @@ from collections import defaultdict
 import numpy as np
 
 
-def gen_r_sn(s,a,rng):
-    z = np.matmul(np.array(s)[:,np.newaxis],np.array(a)[np.newaxis,:]).reshape((6,))
-    R = np.array([[0.1, 0.1, 0.4, 0.4, 0.8, 0.8]])
-    #10010, 10001, 01010, 01001, 0011, 00101
-    P = [
-        [1.0, 0.5,   0.0,   0.0,   0.0,   0.5],
-        [0.0, 0.5,   1.0,   0.5,   0.0,   0.0],
-        [0.0, 0.0,   0.0,   0.5,   1.0,   0.5],
-    ]
-    si = rng.choice([0,1,2], p=np.dot(P,z))
-    sn=[[1, 0, 0], [0, 1, 0], [0, 0, 1]][si]
-    r = np.dot(R,z)[0]
-    return r, sn
+class Environment1(object):
+    def __init__(self, H=6, s_size=50, a_size=20, seed=0):
+        self.seed = seed
+        self.rng = np.random.RandomState(self.seed)
+        self.s_size = s_size
+        self.a_size = a_size
+        self.H = H
+        self.S = np.eye(self.s_size)
+        self.A = np.eye(self.a_size)
+        self.R = self.gen_reward()
+        self.P = self.gen_transition()
 
-def random_pi(rng):
-    return [[1,0],[0,1]][rng.choice([0,1])]
+    def reset_rng(self, seed=0):
+        self.seed = seed
+        self.rng = np.random.RandomState(self.seed)
 
-def gen_random_trajs(N, length, labeled, rng):
-    trajs = defaultdict(list)
-    for _ in range(N):
-        s = [[1,0, 0],[0,1, 0],[0,0, 1]][rng.choice([0,1,2],p=[0.7,0.2,0.1])]
-        for i in range(length):
-            a = random_pi(rng)             # 1) Sample random action
-            r, sn = gen_r_sn(s, a, rng)      # 2) Transition to next state and get reward
-            if labeled:
-                # 3) Store (s, a, r, s') in the trajectory
-                trajs[i].append((np.array(s), np.array(a), r))
-            else:
-                # 3) Store (s, a, s') in the trajectory
-                trajs[i].append((np.array(s), np.array(a)))
-            s = sn                      # 4) Update current state
-    return trajs
+    def gen_init_states(self):
+        p = list(reversed(range(self.s_size)))
+        p = [x/sum(p) for x in p]
+        s = self.S[self.rng.choice(range(self.s_size), p=p)]
+        return s
 
-def gen_dataset(N1=10,N2=10,H=3,seed=0):
-    rng = np.random.RandomState(seed)
-    D1 = gen_random_trajs(N=N1, length=H, labeled = True, rng=rng)
-    D2 = gen_random_trajs(N=N2, length=H, labeled = False, rng=rng)
-    return D1,D2, [[1,0],[0,1]]
+    def gen_reward(self):
+        R = np.zeros((self.s_size,self.a_size))
+        for i in range(R.shape[0]):
+            R[i,:]= ((i+1)/R.shape[0])**2
+        R = R.reshape((self.s_size*self.a_size,))
+        return R
+
+    def gen_transition(self):
+        P = np.zeros((self.s_size,self.s_size*self.a_size,))
+        for i in range(P.shape[0]):
+            for j in range(self.s_size*self.a_size):
+                if i*self.a_size == j:
+                    P[i,j] = 1
+                elif i*self.a_size + 1 == j:
+                    P[(i+1)%self.s_size,j] = 0.5
+                    P[i,j] = 0.5
+                #if self.a_size > 2:
+                #    if i * self.a_size + 2 == j:
+                #        P[(i + 1) % self.s_size, j] = 0.25
+                #        P[(i + 2) % self.s_size, j] = 0.25
+                #        P[i, j] = 0.5
+                #if self.a_size > 3:
+                #    if i * self.a_size + 3 == j:
+                #        P[(i + 1) % self.s_size, j] = 0.25
+                #        P[(i + 2) % self.s_size, j] = 0.125
+                #        P[(i + 3) % self.s_size, j] = 0.125
+                #        P[i, j] = 0.5
+                #if self.a_size > 4:
+                #    if i * self.a_size + 4 == j:
+                #        P[(i + 1) % self.s_size, j] = 0.25
+                #        P[(i + 2) % self.s_size, j] = 0.125
+                #        P[(i + 3) % self.s_size, j] = 0.0625
+                #        P[(i + 4) % self.s_size, j] = 0.0625
+                #        P[i, j] = 0.5
+                for k in range(2, self.a_size):
+                    if i * self.a_size + k == j:
+                        for l in range(1,k):
+                            P[(i + l) % self.s_size, j] = 1/2**(l+1)
+                        P[(i + k) % self.s_size, j] = 1/2**(k)
+                        P[i, j] = 0.5
+        return P
+
+
+    def gen_r_sn(self, s,a):
+        z = np.matmul(np.array(s)[:,np.newaxis],np.array(a)[np.newaxis,:]).reshape((self.s_size*self.a_size,))
+        si = self.rng.choice(range(self.s_size), p=np.dot(self.P,z))
+        sn = self.S[si]
+        r = np.dot(self.R,z)
+        return r, sn
+
+    def random_pi(self):
+        return self.A[self.rng.choice(range(self.a_size))]
+
+    def gen_random_trajs(self, N, length, labeled):
+        trajs = defaultdict(list)
+        for _ in range(N):
+            s = self.gen_init_states()
+            for i in range(length):
+                a = self.random_pi()
+                r, sn = self.gen_r_sn(s, a)
+                if labeled:
+                    trajs[i].append((np.array(s), np.array(a), r))
+                else:
+                    trajs[i].append((np.array(s), np.array(a)))
+                s = sn
+        return trajs
+
+    def gen_dataset(self, N1=15, N2=10, H=3):
+        D1 = self.gen_random_trajs(N=N1, length=H, labeled = True)
+        D2 = self.gen_random_trajs(N=N2, length=H, labeled = False)
+        return D1,D2
 
 
 if __name__ == '__main__':
-    print(gen_dataset())
     pass

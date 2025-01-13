@@ -4,7 +4,9 @@ from typing import Callable, List, Tuple, Dict
 from sympy import Lambda
 
 from kernel_funcs import gen_d_finite_kernel_function_example
-from environment_1 import Environment1 #gen_dataset, gen_r_sn
+from environment_linear import EnvLinear #gen_dataset, gen_r_sn
+import matplotlib.pyplot as plt
+import matplotlib
 
 
 ##############################################################################
@@ -277,6 +279,41 @@ def evaluate(env, pi_func):
 ##############################################################################
 # Example main code
 ##############################################################################
+def run_experiment(H, delta, B, nu, lamda, beta_h_func, output_name="default.png"):
+    env = EnvLinear(H=H, seed=0)
+    def random_pi(h, s):
+        return env.random_pi()
+    R_rand = evaluate(env=env, pi_func=random_pi)
+    for n1 in range(1,5):
+        print(f"N1={n1}")
+        N2s = []
+        R1s = []
+        plt.clf()
+        plt.figure(figsize=(10, 6))
+        for n2 in range(20):
+            print(f"N1={n1},N2={n2}")
+            N1 = n1*2
+            N2 = n2
+            env.reset_rng(seed=0)
+            D1, D2 = env.gen_dataset(N1=N1,N2=N2,H=H)
+            pi_hat = data_sharing_kernel_approx(
+                D1, D2,
+                env.H,
+                beta_h_func, delta,
+                B, nu, lamda, env.A
+            )
+            R1 = evaluate(env=env, pi_func=pi_hat)
+            #print(f"N1={N1},N2={N2},R1={:.3f},:.3f}")
+            N2s.append(N2)
+            R1s.append(R1)
+        plt.plot(N2s, R1s, label=f'N1={n1}')
+        plt.axhline(y=R_rand, color='r', linestyle='--', label=f'R_rand = {R_rand}')
+        plt.xlabel('N2')
+        plt.ylabel('R1')
+        plt.title('Plot of R1 vs N2 with R_rand Line')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"results/{output_name}_N1_{n1}.png")
 
 if __name__ == "__main__":
     H = 20
@@ -285,26 +322,7 @@ if __name__ == "__main__":
     B = 0.05
     nu = 0.01
     lamda = 1.0
-
     beta_h_func = 0.05
-    rng = np.random.RandomState(0)
 
+    run_experiment(H, delta, B, nu, lamda, beta_h_func)
 
-
-
-    for n1 in range(1,5):
-        for n2 in range(0,5):
-            N1 = n1*2
-            N2 = n2*5
-            env = Environment1(H=H,seed=0)
-            D1, D2 = env.gen_dataset(N1=N1,N2=N2,H=H)
-
-            pi_hat = data_sharing_kernel_approx(
-                D1, D2,
-                env.H,
-                beta_h_func, delta,
-                B, nu, lamda, env.A
-            )
-            def random_pi(h,s):
-                return env.random_pi()
-            print(f"N1={N1},N2={N2},R1={evaluate(env=env, pi_func=pi_hat):.3f},R_rand={evaluate(env=env, pi_func=random_pi):.3f}")

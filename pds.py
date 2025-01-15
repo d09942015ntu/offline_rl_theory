@@ -5,6 +5,7 @@ from sympy import Lambda
 
 from kernel_funcs import gen_d_finite_kernel_function_example
 from environment_linear import EnvLinear #gen_dataset, gen_r_sn
+from environment_linear2 import EnvLinear2
 import matplotlib.pyplot as plt
 import matplotlib
 
@@ -190,7 +191,7 @@ def pevi_kernel_approx(Dtheta, H, B, lamda, Aspace):
         Rh = np.array(Rh)
         Zh = np.concatenate([Sh,Ah],axis=1)
 
-        Ldh = np.matmul(Zh.T, Zh) + nu * np.eye(Zh.shape[1])
+        Ldh = np.matmul(Zh.T, Zh) + lamda * np.eye(Zh.shape[1])
         Ldh_inv = np.linalg.inv(Ldh)
         ## (In practice, might need numerical stability, etc.)
         if h == H-1:
@@ -279,8 +280,7 @@ def evaluate(env, pi_func):
 ##############################################################################
 # Example main code
 ##############################################################################
-def run_experiment(H, delta, B, nu, lamda, beta_h_func, output_name="default.png"):
-    env = EnvLinear(H=H, seed=0)
+def run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="default.png"):
     def random_pi(h, s):
         return env.random_pi()
     R_rand = evaluate(env=env, pi_func=random_pi)
@@ -315,14 +315,74 @@ def run_experiment(H, delta, B, nu, lamda, beta_h_func, output_name="default.png
         plt.grid(True)
         plt.savefig(f"results/{output_name}_N1_{n1}.png")
 
-if __name__ == "__main__":
+def run_default_settings():
     H = 20
 
     delta = 0.1
     B = 0.05
-    nu = 0.01
-    lamda = 1.0
+    nu = 0.005
+    lamda = 0.005
     beta_h_func = 0.05
 
-    run_experiment(H, delta, B, nu, lamda, beta_h_func)
+    env = EnvLinear2(H=H, seed=0)
+    run_experiment(H, env, delta, B, nu, lamda, beta_h_func)
 
+def run_param_settings():
+    H = 20
+
+    delta = 0.1
+
+    B = 2
+
+    nu = 0.005
+
+    lamda = 0.005
+
+    env = EnvLinear()
+
+    # Set beta_h_func
+    N1=5
+    d = env.s_size+env.a_size
+    zeta_2 = np.log((2*d*N1)/delta)
+    beta_h_func = 2*(d*zeta_2)
+
+    env = EnvLinear2(H=H, seed=0)
+    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="setting1.png")
+
+def run_debug():
+
+
+    H = 5
+
+    delta = 0.1
+    B = 0.05
+    nu = 0.005
+    lamda = 0.005
+    beta_h_func = 0.05
+
+    N1 = 100
+    N2 = 10
+    print(f"N1={N1},N2={N2}")
+
+    env = EnvLinear2(s_size=5, H=H)
+    env.reset_rng(seed=0)
+    D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
+    print(env.H)
+    pi_hat = data_sharing_kernel_approx(
+        D1, D2,
+        env.H,
+        beta_h_func, delta,
+        B, nu, lamda, env.A
+    )
+
+    def random_pi(h, s):
+        return env.random_pi()
+    R1 = evaluate(env=env, pi_func=pi_hat)
+    Rrand = evaluate(env=env, pi_func=random_pi)
+    print(f"R1={R1}, Rrand={Rrand}")
+
+
+if __name__ == "__main__":
+    #run_default_settings()
+    #run_param_settings()
+    run_debug()

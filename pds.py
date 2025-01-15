@@ -19,14 +19,15 @@ import matplotlib
 
 
 
-def phi(z, dataset=None):
+def phi(s, a):
     """
     'Feature map' from z to the RKHS. In many places you don't need to
     explicitly store phi(...) if you do kernel tricks. If you do need
     it explicitly, define it here.
     """
-    # In practice, for an infinite-dimensional RKHS, you'd use a kernel trick.
-    # For demonstration, let's just return z itself (as if a linear embedding).
+    z = np.zeros((len(s),len(a)))
+    z[list(s).index(1), list(a).index(1)] = 1
+    z = z.flatten()
     return z
 
 
@@ -70,7 +71,8 @@ def fit_reward_function(D1, H, nu):
         Sh = np.array(Sh)
         Ah = np.array(Ah)
         Rh = np.array(Rh)
-        Zh = np.concatenate([Sh,Ah],axis=1)
+        Zh = np.array([phi(s,a) for s,a in zip(Sh,Ah)])
+
         #K, N1 = build_gram_matrix(Sh,Ah,kernel_function)
 
         ## Solve alpha_h = (K + nu I)^{-1} * Rh
@@ -119,7 +121,7 @@ def relabel_unlabeled_data(D2, theta_tilde_fn, H):
 
         # Now for each (s_h^tau, a_h^tau) in D2[h], relabel:
         for (s_h_t, a_h_t) in D2[h]:
-            r_pess = theta_tilde_fn_h(np.concatenate([s_h_t, a_h_t]))
+            r_pess = theta_tilde_fn_h(phi(s_h_t, a_h_t))
             D2_tilde[h].append((s_h_t, a_h_t, r_pess))
 
     return D2_tilde
@@ -132,7 +134,6 @@ def relabel_unlabeled_data(D2, theta_tilde_fn, H):
 def combine_datasets(D1, D2_tilde, H):
     Dtheta = [[] for _ in range(H)]
     for h in range(H):
-        # just concatenate
         Dtheta[h] = D1[h] + D2_tilde[h]
     return Dtheta
 
@@ -189,7 +190,7 @@ def pevi_kernel_approx(Dtheta, H, B, lamda, Aspace):
         Sh = np.array(Sh)
         Ah = np.array(Ah)
         Rh = np.array(Rh)
-        Zh = np.concatenate([Sh,Ah],axis=1)
+        Zh = np.array([phi(s,a) for s,a in zip(Sh,Ah)])
 
         Ldh = np.matmul(Zh.T, Zh) + lamda * np.eye(Zh.shape[1])
         Ldh_inv = np.linalg.inv(Ldh)
@@ -207,7 +208,7 @@ def pevi_kernel_approx(Dtheta, H, B, lamda, Aspace):
         # 2.2: Define bonus Gamma_h, etc.
         # For demonstration, we do a no-op assignment:
         def Qhat_h_func(s,a):
-            z = np.concatenate([s,a])
+            z = phi(s,a)
             return np.clip(np.dot(theta_hat_h, z) - B * np.dot(np.dot(z, Ldh_inv), z) ** 0.5,0, H-h)
 
         Qhat[h] = Qhat_h_func
@@ -280,11 +281,11 @@ def evaluate(env, pi_func):
 ##############################################################################
 # Example main code
 ##############################################################################
-def run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="default.png"):
+def run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="default"):
     def random_pi(h, s):
         return env.random_pi()
     R_rand = evaluate(env=env, pi_func=random_pi)
-    for n1 in range(1,5):
+    for n1 in range(1,8):
         print(f"N1={n1}")
         N2s = []
         R1s = []
@@ -292,7 +293,7 @@ def run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="defaul
         plt.figure(figsize=(10, 6))
         for n2 in range(20):
             print(f"N1={n1},N2={n2}")
-            N1 = n1*2
+            N1 = n1
             N2 = n2
             env.reset_rng(seed=0)
             D1, D2 = env.gen_dataset(N1=N1,N2=N2,H=H)
@@ -316,7 +317,7 @@ def run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="defaul
         plt.savefig(f"results/{output_name}_N1_{n1}.png")
 
 def run_default_settings():
-    H = 20
+    H = 10
 
     delta = 0.1
     B = 0.05
@@ -324,18 +325,15 @@ def run_default_settings():
     lamda = 0.005
     beta_h_func = 0.05
 
-    env = EnvLinear2(H=H, seed=0)
-    run_experiment(H, env, delta, B, nu, lamda, beta_h_func)
+    env = EnvLinear(H=H, seed=0, s_size=5, a_size=5)
+    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="default")
 
 def run_param_settings():
-    H = 20
+    H = 10
 
     delta = 0.1
-
     B = 2
-
     nu = 0.005
-
     lamda = 0.005
 
     env = EnvLinear()
@@ -346,13 +344,11 @@ def run_param_settings():
     zeta_2 = np.log((2*d*N1)/delta)
     beta_h_func = 2*(d*zeta_2)
 
-    env = EnvLinear2(H=H, seed=0)
-    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="setting1.png")
+    env = EnvLinear(H=H, seed=0, s_size=5, a_size=5)
+    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="params")
 
-def run_debug():
-
-
-    H = 5
+def run_default_settings2():
+    H = 10
 
     delta = 0.1
     B = 0.05
@@ -360,11 +356,23 @@ def run_debug():
     lamda = 0.005
     beta_h_func = 0.05
 
+    env = EnvLinear2(H=H, seed=0, s_size=8)
+    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="default2")
+
+def run_debug():
+    H = 10
+    delta = 0.1
+    B = 0.05
+    beta_h_func = 0.05
+
+    lamda = 1
+    nu = 1
+
     N1 = 100
     N2 = 10
     print(f"N1={N1},N2={N2}")
 
-    env = EnvLinear2(s_size=5, H=H)
+    env = EnvLinear2(s_size=8, H=H)
     env.reset_rng(seed=0)
     D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
     print(env.H)
@@ -384,5 +392,5 @@ def run_debug():
 
 if __name__ == "__main__":
     #run_default_settings()
-    #run_param_settings()
+    #run_default_settings2()
     run_debug()

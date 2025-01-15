@@ -4,7 +4,7 @@ import numpy as np
 
 
 class EnvLinear(object):
-    def __init__(self, H=6, s_size=50, a_size=20, seed=0):
+    def __init__(self, H=6, s_size=20, a_size=10, seed=0):
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
         self.s_size = s_size

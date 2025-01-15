@@ -27,8 +27,8 @@ class EnvLinear2(object):
 
     def gen_reward(self):
         R = np.zeros((self.s_size,self.a_size))
-        for i in range(R.shape[0]):
-            R[i,:]= ((i+1)/R.shape[0])**2
+        #for i in range(R.shape[0]):
+        R[-1,:]= 1
         R = R.reshape((self.s_size*self.a_size,))
         return R
 

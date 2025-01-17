@@ -1,3 +1,4 @@
-linear regression
-beta params
-finite dim kernel feature
+# linear regression
+kernel-ridge regression for reward
+kernel-ridge regression for reward and transitions
+

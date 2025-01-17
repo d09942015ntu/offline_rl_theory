@@ -326,7 +326,7 @@ def run_default_settings():
     beta_h_func = 0.05
 
     env = EnvLinear(H=H, seed=0, s_size=5, a_size=5)
-    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="default")
+    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="linear_env1")
 
 def run_param_settings():
     H = 10
@@ -345,7 +345,7 @@ def run_param_settings():
     beta_h_func = 2*(d*zeta_2)
 
     env = EnvLinear(H=H, seed=0, s_size=5, a_size=5)
-    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="params")
+    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="linear_params")
 
 def run_default_settings2():
     H = 10
@@ -357,7 +357,7 @@ def run_default_settings2():
     beta_h_func = 0.05
 
     env = EnvLinear2(H=H, seed=0, s_size=8)
-    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="default2")
+    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="linear_env2")
 
 def run_debug():
     H = 10

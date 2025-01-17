@@ -274,7 +274,7 @@ def evaluate(env, pi_func):
         sn =env.gen_init_states()
         for h in range(env.H):
             a = pi_func(h, sn)
-            r, sn = env.gen_r_sn(sn, a)
+            r, sn = env.get_r_sn(sn, a)
             r1 += r
         R1.append(r1)
     return np.average(R1)

@@ -42,7 +42,7 @@ class EnvLinear2(object):
         return P
 
 
-    def gen_r_sn(self, s,a):
+    def get_r_sn(self, s, a):
         z = np.matmul(np.array(s)[:,np.newaxis],np.array(a)[np.newaxis,:]).reshape((self.s_size*self.a_size,))
         si = self.rng.choice(range(self.s_size), p=np.dot(self.P,z))
         sn = self.S[si]
@@ -58,7 +58,7 @@ class EnvLinear2(object):
             s = self.gen_init_states()
             for i in range(length):
                 a = self.random_pi()
-                r, sn = self.gen_r_sn(s, a)
+                r, sn = self.get_r_sn(s, a)
                 if labeled:
                     trajs[i].append((np.array(s), np.array(a), r))
                 else:

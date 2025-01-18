@@ -13,10 +13,10 @@ class EnvKernel(object):
         self.s_size = s_size
         self.H = H
         self.S = np.eye(self.s_size)
-        self.A = np.eye(self.s_size)
+        self.A = list(range(self.s_size))
         self.a_trans = self.gen_a_trans()
         self.s_coeff = 1.0
-        self.alpha = 0.2  # You can tune this
+        self.variance = 3  # You can tune this
         self.num_samples = 1000
 
 
@@ -27,12 +27,13 @@ class EnvKernel(object):
         sample = self.rng.choice(line_space,p=p)
         return sample % self.s_size
 
-
-
+    def kernel(self, z1, z2):
+        normalizing_const = math.sqrt(math.pi / self.variance)
+        return math.exp(- self.variance * ((z1[0] - z2[0]) ** 2 + (z1[1] - z2[1]) ** 2)) / normalizing_const
 
     def get_sn(self, s, a):
         mu = (self.a_trans[a] + self.s_coeff*s) % self.s_size
-        return self.gaussian_sampler(mu, var=0.2)
+        return round(self.gaussian_sampler(mu, var=self.variance),2)
         #exponent = - self.alpha * (s_prime - mu ) ** 2
         #numerator = math.exp(exponent)
         #return numerator / self.normalizing_const
@@ -42,14 +43,14 @@ class EnvKernel(object):
         self.rng = np.random.RandomState(self.seed)
 
     def gen_init_states(self):
-        return self.gaussian_sampler(1, var=0.2)
+        return round(self.gaussian_sampler(1, var=self.variance),2)
 
 
     def gen_a_trans(self):
         return self.rng.permutation(list(range(self.s_size)))
 
     def get_r(self, s, a):
-        return math.exp(- 0.2 * (s - math.ceil(self.s_size/2) ) ** 2)
+        return round(math.exp(- 0.2 * (s - math.ceil(self.s_size/2) ) ** 2),3)
 
     def get_r_sn(self, s, a):
         r = self.get_r(s, a)

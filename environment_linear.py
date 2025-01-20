@@ -81,6 +81,7 @@ class EnvLinear(object): #Refactor done
         return trajs
 
     def gen_dataset(self, N1=15, N2=10, H=3):
+        self.reset_rng(self.seed)
         D1 = self.gen_random_trajs(N=N1, length=H, labeled = True)
         D2 = self.gen_random_trajs(N=N2, length=H, labeled = False)
         return D1,D2

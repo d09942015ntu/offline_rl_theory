@@ -5,58 +5,59 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-class EnvKernelBandit(object):
+class EnvKernel(object):
     def __init__(self, H=6, s_size=6, seed=0):
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
         self.s_size = s_size
+        self.s_size = s_size
         self.H = H
+        self.S = np.eye(self.s_size)
         self.A = list(range(self.s_size))
-        self._R = self._gen_r()
-        self._s_coeff = 1.0
-        self._variance = 3  # You can tune this
-        self._num_samples = 1000
+        self.a_trans = self.gen_a_trans()
+        self.s_coeff = 1.0
+        self.variance = 3  # You can tune this
+        self.num_samples = 1000
 
-    def _kernel(self, z1, z2):
-        normalizing_const = math.sqrt(math.pi / self._variance)
-        return math.exp(- self._variance * ((z1[0] - z2[0]) ** 2 + (z1[1] - z2[1]) ** 2)) / normalizing_const
 
-    def _gen_r(self):
-        #R =list(range(self.s_size))
-        R = []
-        for i in range(self.s_size) :
-            R.append(self.rng.choice(list(range(self.s_size))))
-        return R
+    def gaussian_sampler(self, mu, var=1.0 ):
+        line_space = np.linspace(mu-0.5*self.s_size, mu+0.5*self.s_size, self.num_samples)
+        p = [math.exp(- var * (x - mu ) ** 2) for x in line_space ]
+        p = [x/sum(p) for x in p]
+        sample = self.rng.choice(line_space,p=p)
+        return sample % self.s_size
 
-    def _get_random_states(self):
-        line_space = np.linspace(0, self.s_size, self._num_samples)
-        return round(self.rng.choice(line_space),2)
+    def kernel(self, z1, z2):
+        normalizing_const = math.sqrt(math.pi / self.variance)
+        return math.exp(- self.variance * ((z1[0] - z2[0]) ** 2 + (z1[1] - z2[1]) ** 2)) / normalizing_const
 
-    def _get_sn(self, s, a):
-        return self._get_random_states()
-
-    def _get_r(self, s, a):
-        r = 0
-        for si, ai in enumerate(self._R):
-            #normalizing_const = math.sqrt(math.pi / self.alpha)
-            #r += math.exp(- self.alpha * ((s - si) ** 2 + (a - ai) ** 2 ) )/normalizing_const
-            r += self._kernel((s, a), (si, ai))
-        return r
+    def get_sn(self, s, a):
+        mu = (self.a_trans[a] + self.s_coeff*s) % self.s_size
+        return round(self.gaussian_sampler(mu, var=self.variance),2)
+        #exponent = - self.alpha * (s_prime - mu ) ** 2
+        #numerator = math.exp(exponent)
+        #return numerator / self.normalizing_const
 
     def reset_rng(self, seed=0):
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
 
     def gen_init_states(self):
-        return self._get_random_states()
+        return round(self.gaussian_sampler(1, var=self.variance),2)
+
+    def gen_a_trans(self):
+        return self.rng.permutation(list(range(self.s_size)))
+
+    def get_r(self, s, a):
+        return round(math.exp(- 0.2 * (s - math.ceil(self.s_size/2) ) ** 2),3)
+
+    def get_r_sn(self, s, a):
+        r = self.get_r(s, a)
+        sn = self.get_sn(s, a)
+        return r, sn
 
     def random_pi(self):
         return self.rng.choice(range(self.s_size))
-
-    def get_r_sn(self, s, a):
-        r = self._get_r(s, a)
-        sn = self._get_sn(s, a)
-        return r, sn
 
     def gen_random_trajs(self, N, length, labeled):
         trajs = defaultdict(list)
@@ -73,7 +74,6 @@ class EnvKernelBandit(object):
         return trajs
 
     def gen_dataset(self, N1=15, N2=10, H=3):
-        self.reset_rng(self.seed)
         D1 = self.gen_random_trajs(N=N1, length=H, labeled = True)
         D2 = self.gen_random_trajs(N=N2, length=H, labeled = False)
         return D1,D2
@@ -92,19 +92,19 @@ def visualize_distribution(s_primes, fname):
     plt.savefig(fname)
 
 def debug_trans():
-    env = EnvKernelBandit()
+    env = EnvKernel()
     for s in range(env.s_size):
         print(f"s0={s}")
         for a in range(env.s_size):
             print(f"s,a={s,a}")
             s_primes=[]
             for p in range(200):
-                s_prime = env._get_sn(s, a)
+                s_prime = env.get_sn(s,a)
                 s_primes.append(s_prime)
-            visualize_distribution(s_primes, fname=f"results/fig_s_{s}_t_|{"|".join([str(int(x + s * env._s_coeff) % env.s_size) for x in env.a_trans])}|_a_{a}.png")
+            visualize_distribution(s_primes, fname=f"results/fig_s_{s}_t_|{"|".join([str(int(x+s*env.s_coeff)%env.s_size) for x in env.a_trans])}|_a_{a}.png")
             print(f"s1={s}")
 
 if __name__ == '__main__':
-    env = EnvKernelBandit()
+    env = EnvKernel()
     results = env.gen_dataset()
     print(1)

@@ -4,7 +4,6 @@ from typing import Callable, List, Tuple, Dict
 
 
 from environment_linear import EnvLinear
-from environment_kernel import EnvKernel
 
 from environment_kernel_bandit import EnvKernelBandit
 import matplotlib.pyplot as plt
@@ -55,12 +54,16 @@ class RewardEval(object):
         return max_q
 
 
-class PDS(object):
-    def __init__(self, env, phi, kernel):
+class PDSKernel(object):
+    def __init__(self, env, phi, kernel, beta1=0.05, beta2=0.05, lamda1=1, lamda2=1):
         self.env = env
         self.phi = phi
         self.kernel = kernel
         self.H = env.H
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.lamda1 = lamda1
+        self.lamda2 = lamda2
         pass
 
 
@@ -93,19 +96,18 @@ class PDS(object):
         Zh = np.array([self.phi(s, a) for s, a in zip(Sh, Ah)])
         return Sh, Ah, Rh, Zh
 
-    def fit_reward_function(self, D1, nu, beta):
-        H = self.env.H
+    def fit_reward_function(self, D1):
         reward_fn = []
 
-        for h in range(H):
+        for h in range(self.env.H):
             Sh, Ah, Rh, Zh = self.data_preprocessing(D1, h)
 
-            K, lambda_inv, alpha = self.build_kernel_matrix(Zh, nu, Rh)
+            K, lambda_inv, alpha = self.build_kernel_matrix(Zh, self.lamda1, Rh)
 
-            lambda_inv = np.linalg.inv(K + nu * np.eye(len(Sh)))
+            lambda_inv = np.linalg.inv(K + self.lamda1 * np.eye(len(Sh)))
             alpha = lambda_inv.dot(Rh)
 
-            reward_fn.append(RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, nu, self.env.A, beta, h, H))
+            reward_fn.append(RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, self.lamda1, self.env.A, self.beta1, h, self.env.H))
 
         return reward_fn
 
@@ -131,14 +133,12 @@ class PDS(object):
 
 
 
-    def pevi_kernel_approx(self, Dtheta, B, lamda):
-        H = self.env.H
-        Aspace = self.env.A
+    def pevi_kernel_approx(self, Dtheta):
 
         rl_fn = []
 
         Sh1 = []
-        for h in reversed(range(H)):
+        for h in reversed(range(self.env.H)):
 
             Sh, Ah, Rh, Zh = self.data_preprocessing(Dtheta, h)
 
@@ -147,9 +147,9 @@ class PDS(object):
             else:
                 Rh_p_V = Rh
 
-            K, lambda_inv, alpha = self.build_kernel_matrix(Zh, lamda, Rh_p_V)
+            K, lambda_inv, alpha = self.build_kernel_matrix(Zh, self.lamda2, Rh_p_V)
 
-            rewad_eval =  RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, lamda, Aspace, B, h, H)
+            rewad_eval =  RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, self.lamda2, self.env.A, self.beta2, h, self.env.H)
 
             rl_fn.insert(0,rewad_eval)
             Sh1 = Sh
@@ -158,15 +158,15 @@ class PDS(object):
         return rl_fn
 
 
-    def data_sharing_kernel_approx(self, D1, D2, beta, B, nu, lamda):
+    def data_sharing_kernel_approx(self, D1, D2):
         # 1) Learn the reward function \hat{\theta}_h
-        reward_fn = self.fit_reward_function(D1, nu, beta)
+        reward_fn = self.fit_reward_function(D1)
 
         ## 2) Relabel unlabeled data D2 with tilde{theta}
         Dtheta = self.relabel_unlabeled_data(D1, D2, reward_fn)
 
         ## 3) Learn the policy from the relabeled dataset using PEVI (Algorithm 2)
-        rl_fn = self.pevi_kernel_approx(Dtheta, B, lamda)
+        rl_fn = self.pevi_kernel_approx(Dtheta)
 
         def pi_reward_hat(h, s):
             _, max_a = max([(reward_fn[h].Qhat_h_func(s, a), a) for a in self.env.A], key=lambda x: x[0])
@@ -178,11 +178,11 @@ class PDS(object):
 
         return  pi_rl_fn, pi_reward_hat
 
-def phi(s, a):
+def phi_tuple(s, a):
     z = (s,a)
     return z
 
-def kernel(z1, z2, variance=3):
+def kernel_gaussian(z1, z2, variance=3):
     #normalizing_const = math.sqrt(math.pi / variance)
     return math.exp(- variance * ((z1[0] - z2[0]) ** 2 + (z1[1] - z2[1]) ** 2)) #/ normalizing_const
 
@@ -203,18 +203,14 @@ def evaluate(env, pi_func):
 
 def run_debug_kernel_bandit():
     H = 10
-    B = 0.05
-    beta_h_func = 0.05
-    lamda = 1
-    nu = 1
     N1 = 100
     N2 = 10
     env = EnvKernelBandit(s_size=8, H=H)
     env.reset_rng(seed=0)
     D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
     print(env.H)
-    pds = PDS(env=env,kernel=kernel, phi=phi)
-    pi_bandit_hat, pi_hat = pds.data_sharing_kernel_approx( D1, D2, beta_h_func, B, nu, lamda)
+    pds = PDSKernel(env=env, kernel=kernel_gaussian, phi=phi_tuple)
+    pi_bandit_hat, pi_hat = pds.data_sharing_kernel_approx(D1, D2)
 
     def random_pi(h, s):
         return env.random_pi()
@@ -227,18 +223,14 @@ def run_debug_kernel_bandit():
 
 def run_debug_linear():
     H = 10
-    B = 0.05
-    beta_h_func = 0.05
-    lamda = 1
-    nu = 1
     N1 = 100
     N2 = 10
     env = EnvLinear(s_size=8, H=H)
     env.reset_rng(seed=0)
     D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
     print(env.H)
-    pds = PDS(env=env,kernel=kernel, phi=phi)
-    pi_bandit_hat, pi_hat = pds.data_sharing_kernel_approx( D1, D2, beta_h_func, B, nu, lamda)
+    pds = PDSKernel(env=env, kernel=kernel_gaussian, phi=phi_tuple)
+    pi_bandit_hat, pi_hat = pds.data_sharing_kernel_approx(D1, D2)
 
     def random_pi(h, s):
         return env.random_pi()

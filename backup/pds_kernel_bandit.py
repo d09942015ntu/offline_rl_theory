@@ -7,7 +7,7 @@ from sympy import Lambda
 from kernel_funcs import gen_d_finite_kernel_function_example
 from environment_linear_old import EnvLinearOld #gen_dataset, gen_r_sn
 from environment_linear import EnvLinear
-from environment_kernel import EnvKernel
+from environment_kernel_old import EnvKernel
 
 from environment_kernel_bandit import EnvKernelBandit
 import matplotlib.pyplot as plt

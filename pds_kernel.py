@@ -2,11 +2,8 @@ import numpy as np
 import math
 from typing import Callable, List, Tuple, Dict
 
-from sympy import Lambda
 
-from kernel_funcs import gen_d_finite_kernel_function_example
-from environment_linear import EnvLinear #gen_dataset, gen_r_sn
-from environment_linear2 import EnvLinear2
+from environment_linear import EnvLinear
 from environment_kernel import EnvKernel
 
 from environment_kernel_bandit import EnvKernelBandit
@@ -20,22 +17,54 @@ import matplotlib
 # embedding, you can define it here.
 ##############################################################################
 
+class RewardEval(object):
+    def __init__(self, phi, kernel, Zh, lambda_inv, alpha, lamda, Aspace, B, h , H):
+        self.Zh = Zh
+        self.kernel = kernel
+        self.lambda_inv = lambda_inv
+        self.alpha = alpha
+        self.lamda = lamda
+        self.phi = phi
+        self.B = B
+        self.h = h
+        self.H = H
+        self.Aspace = Aspace
 
+
+    def mean_kernel_sample(self, z):
+        k_array = np.array([self.kernel(z, zi) for zi in self.Zh])
+        result = k_array.dot(self.alpha)
+        return result
+
+    def var_kernel_sample(self, z):
+        k_array = np.array([self.kernel(z, zi) for zi in self.Zh])
+        uncertainty = max(self.kernel(z, z) - np.dot(np.dot(self.lambda_inv, k_array), k_array), 0)
+        result = (self.lamda ** 0.5) * ((uncertainty) ** 0.5)
+        return result
+
+    def Zhat_h_func(self, z):
+        return max(self.mean_kernel_sample(z) - self.B * self.var_kernel_sample(z), 0)
+
+    def Qhat_h_func(self, s, a):
+        z = self.phi(s, a)
+        result = np.clip(self.Zhat_h_func(z), 0, self.H - self.h)
+        return result
+
+    def Vhat_h_func(self, s):
+        max_q, _ = max([(self.Qhat_h_func(s, a), a) for a in self.Aspace], key=lambda x: x[0])
+        return max_q
 
 
 class PDS(object):
-    def __init__(self, env, kernel):
+    def __init__(self, env, phi, kernel):
         self.env = env
+        self.phi = phi
         self.kernel = kernel
         self.H = env.H
         pass
 
 
-    def phi(self, s, a):
-        z = (s,a)
-        return z
-
-    def build_gram_matrix(self, Zh) -> np.ndarray:
+    def build_kernel_matrix(self, Zh, lamda, Rh):
         N1 = len(Zh)
         # Build kernel matrix K of size NxN
         K = np.zeros((N1, N1))
@@ -45,7 +74,10 @@ class PDS(object):
                 zj = Zh[j]
                 #print(f"zi,zj={zi},{zj}")
                 K[i, j] = self.kernel(zi, zj)
-        return K
+
+        lambda_inv = np.linalg.inv(K + lamda * np.eye(len(Zh)))
+        alpha = lambda_inv.dot(Rh)
+        return K, lambda_inv, alpha
 
     def data_preprocessing(self, D, h):
         Sh = []
@@ -61,157 +93,98 @@ class PDS(object):
         Zh = np.array([self.phi(s, a) for s, a in zip(Sh, Ah)])
         return Sh, Ah, Rh, Zh
 
-    def fit_reward_function(self, D1, nu):
+    def fit_reward_function(self, D1, nu, b_h_func):
         H = self.env.H
-        reward_fn = [None] * H
+        reward_fn = []
 
         for h in range(H):
             Sh, Ah, Rh, Zh = self.data_preprocessing(D1, h)
 
-            K = self.build_gram_matrix(Zh)
+            K, lambda_inv, alpha = self.build_kernel_matrix(Zh, nu, Rh)
 
             lambda_inv = np.linalg.inv(K + nu * np.eye(len(Sh)))
             alpha = lambda_inv.dot(Rh)
 
-            def mean_kernel_sample(z):
-                k_array = np.array([self.kernel(z,zi) for zi in Zh])
-                result = k_array.dot(alpha)
-                return result
-
-            def var_kernel_sample(z):
-                k_array = np.array([self.kernel(z,zi) for zi in Zh])
-                result = (nu**0.5)*((self.kernel(z,z) - np.dot(np.dot(lambda_inv,k_array),k_array))**0.5)
-                return result
-
-
-            reward_fn[h] = mean_kernel_sample, var_kernel_sample
+            reward_fn.append(RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, nu, self.env.A, b_h_func, h , H))
 
         return reward_fn
 
 
-    def build_pessimistic_reward(self, theta_hat, beta_h):
-        theta_tilde_fn = [None] * self.env.H
 
+    def relabel_unlabeled_data(self, D1, D2, reward_fn, relabel_D1=True):
+
+        Dtilde = []
         for h in range(self.env.H):
-            mean_kernel_sample, var_kernel_sample = theta_hat[h]
-            theta_tilde_fn[h] = lambda z : max(mean_kernel_sample(z) - beta_h * var_kernel_sample(z),0)
+            Dtilde.append([])
+            reward_fn_h = reward_fn[h]
 
-        return theta_tilde_fn
+            for (s_h_t, a_h_t, r_pess ) in D1[h]:
+                if relabel_D1:
+                    r_pess = reward_fn_h.Zhat_h_func(self.phi(s_h_t, a_h_t))
+                Dtilde[-1].append((s_h_t, a_h_t, r_pess))
 
-
-    def relabel_unlabeled_data(self, D1, D2, theta_tilde_fn):
-
-
-        D2_tilde = [[] for _ in range(self.env.H)]
-
-        for h in range(self.env.H):
-            theta_tilde_fn_h = theta_tilde_fn[h]
             for (s_h_t, a_h_t) in D2[h]:
-                r_pess = theta_tilde_fn_h(self.phi(s_h_t, a_h_t))
-                D2_tilde[h].append((s_h_t, a_h_t, r_pess))
+                r_pess = reward_fn_h.Zhat_h_func(self.phi(s_h_t, a_h_t))
+                Dtilde[-1].append((s_h_t, a_h_t, r_pess))
 
-        Dtheta = self.combine_datasets(D1, D2_tilde)
+        return Dtilde
 
-        return Dtheta
-
-
-    def combine_datasets(self, D1, D2_tilde):
-        Dtheta = [[] for _ in range(self.env.H)]
-        for h in range(self.env.H):
-            Dtheta[h] = D1[h] + D2_tilde[h]
-        return Dtheta
 
 
     def pevi_kernel_approx(self, Dtheta, B, lamda):
         H = self.env.H
         Aspace = self.env.A
 
-        # Step 2: build value iteration from h=H to h=1
-        # We'll store Qhat[h] and Vhat[h].
-        Qhat = [None] * H
-        Vhat = [None] * H
-
-        # Initialize Vhat_{H+1}(.) = 0
-        # We'll store a function handle for Vhat_{H+1}(s) = 0 for all s.
-        def Vhat_terminal(s):
-            return 0.0
-
-        Vhat.append(Vhat_terminal)  # so that Vhat[H] is "terminal"
+        rl_fn = []
 
         Sh1 = []
         for h in reversed(range(H)):
 
             Sh, Ah, Rh, Zh = self.data_preprocessing(Dtheta, h)
 
-            K = self.build_gram_matrix(Zh)
-
-            if h == H-1:
-                Rh_p_V = Rh
+            if len(rl_fn) > 0:
+                Rh_p_V = [r + rl_fn[0].Vhat_h_func(s) for r,s in zip(Rh, Sh1)]
             else:
-                Rh_p_V = [r+Vhat[h+1](s) for r,s in zip(Rh,Sh1)]
+                Rh_p_V = Rh
 
-            lambda_inv = np.linalg.inv(K + lamda * np.eye(len(Sh)))
-            alpha = lambda_inv.dot(Rh_p_V)
+            K, lambda_inv, alpha = self.build_kernel_matrix(Zh, lamda, Rh_p_V)
 
-            def mean_kernel_sample(z):
-                k_array = np.array([self.kernel(z,zi) for zi in Zh])
-                result = k_array.dot(alpha)
-                return result
+            rewad_eval =  RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, lamda, Aspace, B, h, H)
 
-            def var_kernel_sample(z):
-                k_array = np.array([self.kernel(z,zi) for zi in Zh])
-                uncertainty = max(self.kernel(z,z) - np.dot(np.dot(lambda_inv,k_array),k_array),0)
-                result = (lamda**0.5)*((uncertainty)**0.5)
-                return result
-
-            def Qhat_h_func(s,a):
-                z = self.phi(s, a)
-                result = np.clip(mean_kernel_sample(z) - B * var_kernel_sample(z), 0, H-h)
-                return result
-
-            def Vhat_h_func(s):
-                max_q, _ = max([(Qhat_h_func(s,a),a) for a in Aspace],key=lambda x:x[0])
-                return max_q
-
-            Qhat[h] = Qhat_h_func
-            Vhat[h] = Vhat_h_func
+            rl_fn.insert(0,rewad_eval)
             Sh1 = Sh
 
-        def policy_fn(h, s):
-            _, max_a  = max([(Qhat[h](s, a), a) for a in Aspace], key=lambda x: x[0])
-            return max_a
 
-        pi_hat = policy_fn
-        return pi_hat
+        return rl_fn
 
-
-    ##############################################################################
-    # Putting it all together as 'Algorithm 1'
-    ##############################################################################
 
     def data_sharing_kernel_approx(self, D1, D2, beta_h_func,  B, nu, lamda):
         # 1) Learn the reward function \hat{\theta}_h
-        reward_fn = self.fit_reward_function(D1, nu)
-
-        theta_tilde_fn = self.build_pessimistic_reward(reward_fn, beta_h_func)
-
-        def pi_bandit_hat(h, s):
-            _, max_a = max([(theta_tilde_fn[h](self.phi(s, a)), a) for a in self.env.A], key=lambda x: x[0])
-            return max_a
+        reward_fn = self.fit_reward_function(D1, nu, beta_h_func)
 
         ## 2) Relabel unlabeled data D2 with tilde{theta}
-        Dtheta = self.relabel_unlabeled_data(D1, D2, theta_tilde_fn)
+        Dtheta = self.relabel_unlabeled_data(D1, D2, reward_fn)
 
         ## 3) Learn the policy from the relabeled dataset using PEVI (Algorithm 2)
-        pi_hat = self.pevi_kernel_approx(Dtheta, B, lamda)
+        rl_fn = self.pevi_kernel_approx(Dtheta, B, lamda)
 
-        return pi_bandit_hat, pi_hat
-        #return pi_hat
+        def pi_reward_hat(h, s):
+            _, max_a = max([(reward_fn[h].Qhat_h_func(s, a), a) for a in self.env.A], key=lambda x: x[0])
+            return max_a
 
+        def pi_rl_fn(h, s):
+            _, max_a  = max([(rl_fn[h].Qhat_h_func(s, a), a) for a in self.env.A], key=lambda x: x[0])
+            return max_a
+
+        return  pi_rl_fn, pi_reward_hat
+
+def phi(s, a):
+    z = (s,a)
+    return z
 
 def kernel(z1, z2, variance=3):
-    normalizing_const = math.sqrt(math.pi / variance)
-    return math.exp(- variance * ((z1[0] - z2[0]) ** 2 + (z1[1] - z2[1]) ** 2)) / normalizing_const
+    #normalizing_const = math.sqrt(math.pi / variance)
+    return math.exp(- variance * ((z1[0] - z2[0]) ** 2 + (z1[1] - z2[1]) ** 2)) #/ normalizing_const
 
 def evaluate(env, pi_func):
     R1 = []
@@ -228,10 +201,8 @@ def evaluate(env, pi_func):
 ##############################################################################
 
 
-
 def run_debug_kernel_bandit():
     H = 10
-    delta = 0.1
     B = 0.05
     beta_h_func = 0.05
     lamda = 1
@@ -242,11 +213,36 @@ def run_debug_kernel_bandit():
     env.reset_rng(seed=0)
     D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
     print(env.H)
-    pds = PDS(env=env,kernel=kernel)
+    pds = PDS(env=env,kernel=kernel, phi=phi)
     pi_bandit_hat, pi_hat = pds.data_sharing_kernel_approx( D1, D2, beta_h_func, B, nu, lamda)
 
     def random_pi(h, s):
         return env.random_pi()
+    print("evaluate")
+    R1 = evaluate(env=env, pi_func=pi_bandit_hat)
+    R2 = evaluate(env=env, pi_func=pi_hat)
+    Rrand = evaluate(env=env, pi_func=random_pi)
+    print(f"R1={R1}, R2={R2}, Rrand={Rrand}")
+
+
+def run_debug_linear():
+    H = 10
+    B = 0.05
+    beta_h_func = 0.05
+    lamda = 1
+    nu = 1
+    N1 = 100
+    N2 = 10
+    env = EnvLinear(s_size=8, H=H)
+    env.reset_rng(seed=0)
+    D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
+    print(env.H)
+    pds = PDS(env=env,kernel=kernel, phi=phi)
+    pi_bandit_hat, pi_hat = pds.data_sharing_kernel_approx( D1, D2, beta_h_func, B, nu, lamda)
+
+    def random_pi(h, s):
+        return env.random_pi()
+    print("evaluate")
     R1 = evaluate(env=env, pi_func=pi_bandit_hat)
     R2 = evaluate(env=env, pi_func=pi_hat)
     Rrand = evaluate(env=env, pi_func=random_pi)
@@ -255,4 +251,5 @@ def run_debug_kernel_bandit():
 
 if __name__ == "__main__":
     run_debug_kernel_bandit()
+    run_debug_linear()
     pass

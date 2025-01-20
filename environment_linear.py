@@ -3,80 +3,72 @@ from collections import defaultdict
 import numpy as np
 
 
-class EnvLinear(object):
-    def __init__(self, H=6, s_size=20, a_size=10, seed=0):
+class EnvLinear(object): #Refactor done
+    def __init__(self, H=6, s_size=10, seed=0):
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
         self.s_size = s_size
-        self.a_size = a_size
+        self.a_size = self.s_size
         self.H = H
-        self.S = np.eye(self.s_size)
-        self.A = np.eye(self.a_size)
-        self.R = self.gen_reward()
-        self.P = self.gen_transition()
+        self.S = list(range(self.s_size))
+        self.A = list(range(self.s_size))
+        self._P = self.gen_transition()
+        self._S = np.eye(self.s_size)
+        self._A = np.eye(self.s_size)
+        self._R = self._gen_reward()
+
+
+    def _gen_init_states(self):
+        p = list(reversed(range(self.s_size)))
+        p = [x/sum(p) for x in p]
+        _s = self._S[self.rng.choice(range(self.s_size), p=p)]
+        return _s
+
+    def _random_pi(self):
+        _a =  self._A[self.rng.choice(range(self.s_size))]
+        return _a
+
+    def _gen_reward(self):
+        R = np.zeros((self.s_size,self.s_size))
+        R[-1,:]= 1
+        R = R.reshape((self.s_size*self.s_size,))
+        return R
+
+    def _phi(self,s,a):
+        _s = self._S[s]
+        _a = self._A[a]
+        _z = np.matmul(_s[:,np.newaxis],_a[np.newaxis,:]).reshape((self.s_size*self.s_size,))
+        return _z
 
     def reset_rng(self, seed=0):
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
 
     def gen_init_states(self):
-        p = list(reversed(range(self.s_size)))
-        p = [x/sum(p) for x in p]
-        s = self.S[self.rng.choice(range(self.s_size), p=p)]
+        s = np.argmax(self._gen_init_states())
         return s
 
-    def gen_reward(self):
-        R = np.zeros((self.s_size,self.a_size))
-        for i in range(R.shape[0]):
-            R[i,:]= ((i+1)/R.shape[0])**2
-        R = R.reshape((self.s_size*self.a_size,))
-        return R
+    def random_pi(self):
+        return np.argmax(self._random_pi())
+
 
     def gen_transition(self):
-        P = np.zeros((self.s_size,self.s_size*self.a_size,))
-        for i in range(P.shape[0]):
-            for j in range(self.s_size*self.a_size):
-                if i*self.a_size == j:
-                    P[i,j] = 1
-                elif i*self.a_size + 1 == j:
-                    P[(i+1)%self.s_size,j] = 0.5
-                    P[i,j] = 0.5
-                #if self.a_size > 2:
-                #    if i * self.a_size + 2 == j:
-                #        P[(i + 1) % self.s_size, j] = 0.25
-                #        P[(i + 2) % self.s_size, j] = 0.25
-                #        P[i, j] = 0.5
-                #if self.a_size > 3:
-                #    if i * self.a_size + 3 == j:
-                #        P[(i + 1) % self.s_size, j] = 0.25
-                #        P[(i + 2) % self.s_size, j] = 0.125
-                #        P[(i + 3) % self.s_size, j] = 0.125
-                #        P[i, j] = 0.5
-                #if self.a_size > 4:
-                #    if i * self.a_size + 4 == j:
-                #        P[(i + 1) % self.s_size, j] = 0.25
-                #        P[(i + 2) % self.s_size, j] = 0.125
-                #        P[(i + 3) % self.s_size, j] = 0.0625
-                #        P[(i + 4) % self.s_size, j] = 0.0625
-                #        P[i, j] = 0.5
-                for k in range(2, self.a_size):
-                    if i * self.a_size + k == j:
-                        for l in range(1,k):
-                            P[(i + l) % self.s_size, j] = 1/2**(l+1)
-                        P[(i + k) % self.s_size, j] = 1/2**(k)
-                        P[i, j] = 0.5
+        self.reset_rng(self.seed)
+        all_p = []
+        for i in range(self.s_size):
+            pi = self.rng.permutation(np.eye(self.s_size))
+            all_p.append(pi)
+        P = np.concatenate(all_p,axis=1)
         return P
 
 
+
     def get_r_sn(self, s, a):
-        z = np.matmul(np.array(s)[:,np.newaxis],np.array(a)[np.newaxis,:]).reshape((self.s_size*self.a_size,))
-        si = self.rng.choice(range(self.s_size), p=np.dot(self.P,z))
-        sn = self.S[si]
-        r = np.dot(self.R,z)
+        _z = self._phi(s,a)
+        sn = self.rng.choice(range(self.s_size), p=np.dot(self._P,_z))
+        r = np.dot(self._R,_z)
         return r, sn
 
-    def random_pi(self):
-        return self.A[self.rng.choice(range(self.a_size))]
 
     def gen_random_trajs(self, N, length, labeled):
         trajs = defaultdict(list)
@@ -86,9 +78,9 @@ class EnvLinear(object):
                 a = self.random_pi()
                 r, sn = self.get_r_sn(s, a)
                 if labeled:
-                    trajs[i].append((np.array(s), np.array(a), r))
+                    trajs[i].append((s, a, r))
                 else:
-                    trajs[i].append((np.array(s), np.array(a)))
+                    trajs[i].append((s, a))
                 s = sn
         return trajs
 
@@ -99,4 +91,7 @@ class EnvLinear(object):
 
 
 if __name__ == '__main__':
+    env = EnvLinear()
+    D1,D2 = env.gen_dataset()
+    print(1)
     pass

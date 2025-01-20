@@ -4,8 +4,8 @@ from typing import Callable, List, Tuple, Dict
 from sympy import Lambda
 
 from kernel_funcs import gen_d_finite_kernel_function_example
-from environment_linear import EnvLinear #gen_dataset, gen_r_sn
-from environment_linear2 import EnvLinear2
+from environment_linear_old import EnvLinearOld #gen_dataset, gen_r_sn
+from environment_linear import EnvLinear
 import matplotlib.pyplot as plt
 import matplotlib
 
@@ -327,7 +327,7 @@ def run_default_settings():
     lamda = 0.005
     beta_h_func = 0.05
 
-    env = EnvLinear(H=H, seed=0, s_size=5, a_size=5)
+    env = EnvLinearOld(H=H, seed=0, s_size=5, a_size=5)
     run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="linear_env1")
 
 def run_param_settings():
@@ -338,7 +338,7 @@ def run_param_settings():
     nu = 0.005
     lamda = 0.005
 
-    env = EnvLinear()
+    env = EnvLinearOld()
 
     # Set beta_h_func
     N1=5
@@ -346,7 +346,7 @@ def run_param_settings():
     zeta_2 = np.log((2*d*N1)/delta)
     beta_h_func = 2*(d*zeta_2)
 
-    env = EnvLinear(H=H, seed=0, s_size=5, a_size=5)
+    env = EnvLinearOld(H=H, seed=0, s_size=5, a_size=5)
     run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="linear_params")
 
 def run_default_settings2():
@@ -358,7 +358,7 @@ def run_default_settings2():
     lamda = 0.005
     beta_h_func = 0.05
 
-    env = EnvLinear2(H=H, seed=0, s_size=8)
+    env = EnvLinear(H=H, seed=0, s_size=8)
     run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="linear_env2")
 
 def run_debug():
@@ -374,7 +374,7 @@ def run_debug():
     N2 = 10
     print(f"N1={N1},N2={N2}")
 
-    env = EnvLinear2(s_size=8, H=H)
+    env = EnvLinear(s_size=8, H=H)
     env.reset_rng(seed=0)
     D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
     print(env.H)

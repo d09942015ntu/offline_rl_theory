@@ -5,8 +5,8 @@ from typing import Callable, List, Tuple, Dict
 from sympy import Lambda
 
 from kernel_funcs import gen_d_finite_kernel_function_example
-from environment_linear import EnvLinear #gen_dataset, gen_r_sn
-from environment_linear2 import EnvLinear2
+from environment_linear_old import EnvLinearOld #gen_dataset, gen_r_sn
+from environment_linear import EnvLinear
 from environment_kernel import EnvKernel
 
 from environment_kernel_bandit import EnvKernelBandit
@@ -235,7 +235,7 @@ def run_debug():
     lamda = 1
     nu = 1
 
-    N1=200
+    N1=100
     N2=10
     env = EnvKernelBandit(s_size=8, H=H)
     print(f"env.R={env.R}")

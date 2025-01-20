@@ -4,8 +4,9 @@ from typing import Callable, List, Tuple, Dict
 from sympy import Lambda
 
 from kernel_funcs import gen_d_finite_kernel_function_example
-from environment_linear import EnvLinear #gen_dataset, gen_r_sn
-from environment_linear2 import EnvLinear2
+from environment_linear_old import EnvLinearOld #gen_dataset, gen_r_sn
+from environment_linear import EnvLinear
+from environment_kernel_bandit import EnvKernelBandit
 import matplotlib.pyplot as plt
 import matplotlib
 
@@ -25,11 +26,7 @@ def phi(s, a):
     explicitly store phi(...) if you do kernel tricks. If you do need
     it explicitly, define it here.
     """
-    s = np.eye(8)[s]
-    a = np.eye(8)[a]
-    z = np.zeros((len(s),len(a)))
-    z[list(s).index(1), list(a).index(1)] = 1
-    z = z.flatten()
+    z = (s,a)
     return z
 
 
@@ -53,10 +50,11 @@ def build_gram_matrix(
 # Step 1: Kernel Ridge Regression to learn reward function from labeled data
 ##############################################################################
 
-def fit_reward_function(D1, H, nu):
+def fit_reward_function(D1, env, nu):
     #kernel_function, phi_func = gen_d_finite_kernel_function_example()
     # We'll store a representation for each horizon step h.
-    theta_hat = [None] * H
+    H = env.H
+    reward_fn = [None] * H
 
     for h in range(H):
         # Extract the labeled data for step h from D1
@@ -77,34 +75,42 @@ def fit_reward_function(D1, H, nu):
 
         #K, N1 = build_gram_matrix(Sh,Ah,kernel_function)
 
-        ## Solve alpha_h = (K + nu I)^{-1} * Rh
-        Ldh = np.matmul(Zh.T,Zh)+ nu *np.eye(Zh.shape[1])
-        ## (In practice, might need numerical stability, etc.)
-        theta_hat_h = np.dot(np.linalg.inv(Ldh), np.dot(Zh.T,Rh))
-        #A = K + nu * np.eye(N1)
-        #alpha_h = np.linalg.inv(A).dot(Rh)
 
-        #Z_data = []
-        #for i in range(N1):
-        #    Z_data.append(np.hstack([Sh[i], Ah[i]]))
+        K = np.zeros((len(Sh),len(Sh)),)
+        for i,zi in enumerate(Zh):
+            for j,zj in enumerate(Zh):
+                K[i,j] = env.kernel(zi,zj)
+
+        lambda_inv = np.linalg.inv(K + nu * np.eye(len(Sh)))
+        alpha = lambda_inv.dot(Rh)
+
+        def mean_kernel_sample(z):
+            k_array = np.array([env.kernel(z,zi) for zi in Zh])
+            return k_array.dot(alpha)
+
+        def var_kernel_sample(z):
+            k_array = np.array([env.kernel(z,zi) for zi in Zh])
+            return (nu**0.5)*((env.kernel(z,z) - np.dot(np.dot(lambda_inv,k_array),k_array))**0.5)
+
 
         # Save
-        theta_hat[h] = theta_hat_h, Ldh
+        reward_fn[h] = mean_kernel_sample, var_kernel_sample
 
-    return theta_hat
+    return reward_fn
 
 
 ##############################################################################
 # Step 2: Construct pessimistic reward function parameters:  tilde{theta}_h
 ##############################################################################
 
-def build_pessimistic_reward(theta_hat, D1, beta_h, H, lambda_operator_dict):
+def build_pessimistic_reward(theta_hat, beta_h, env):
+    H = env.H
     theta_tilde_fn = [None] * H
 
     for h in range(H):
         # Retrieve the learned alpha vector for step h
-        theta_hat_i, ld_i = theta_hat[h]
-        theta_tilde_fn[h] = lambda z : np.dot(theta_hat_i,z) - beta_h * np.dot(np.dot(z,np.linalg.inv(ld_i)),z)**0.5
+        mean_kernel_sample, var_kernel_sample = theta_hat[h]
+        theta_tilde_fn[h] = lambda z : mean_kernel_sample(z) - beta_h * var_kernel_sample(z)
 
     return theta_tilde_fn
 
@@ -240,32 +246,32 @@ def pevi_kernel_approx(Dtheta, H, B, lamda, Aspace):
 ##############################################################################
 
 def data_sharing_kernel_approx(D1, D2,
-                               H, beta_h_func, delta, B, nu, lamda, Aspace):
+                               env, beta_h_func, delta, B, nu, lamda, ):
     # 1) Learn the reward function \hat{\theta}_h
-    theta_hat = fit_reward_function(D1, H, nu)
+    H = env.H
+    Aspace = env.A
+    reward_fn = fit_reward_function(D1, env, nu)
 
     # 2) Construct the pessimistic reward function param tilde{theta}
     #    We need \Lambda_h^{D1}, i.e. the operator sum_{tau} phi(z_h^tau) phi(z_h^tau)^T + nu I
     #    plus an invert. We'll skip the details in this skeleton and pass a mock dictionary:
-    lambda_operator_dict = {}
-    for h in range(H):
-        lambda_operator_dict[h] = None  # placeholder
 
-      #TODO
+    theta_tilde_fn = build_pessimistic_reward(reward_fn, beta_h_func, env)
 
-    theta_tilde_fn = build_pessimistic_reward(theta_hat, D1, beta_h_func, H,
-                                           lambda_operator_dict)
+    def policy_fn(h, s):
+        _, max_a  = max([(theta_tilde_fn[h](phi(s, a)), a) for a in env.A], key=lambda x: x[0])
+        return max_a
 
-    # 3) Relabel unlabeled data D2 with tilde{theta}
-    D2_tilde = relabel_unlabeled_data(D2, theta_tilde_fn, H)
+    ## 3) Relabel unlabeled data D2 with tilde{theta}
+    #D2_tilde = relabel_unlabeled_data(D2, theta_tilde_fn, H)
 
-    # 4) Combine labeled & unlabeled
-    Dtheta = combine_datasets(D1, D2_tilde, H)
+    ## 4) Combine labeled & unlabeled
+    #Dtheta = combine_datasets(D1, D2_tilde, H)
 
-    # 5) Learn the policy from the relabeled dataset using PEVI (Algorithm 2)
-    pi_hat = pevi_kernel_approx(Dtheta, H, B, lamda, Aspace)
+    ## 5) Learn the policy from the relabeled dataset using PEVI (Algorithm 2)
+    #pi_hat = pevi_kernel_approx(Dtheta, H, B, lamda, Aspace)
 
-    return pi_hat
+    return policy_fn
 
 
 def evaluate(env, pi_func):
@@ -283,105 +289,27 @@ def evaluate(env, pi_func):
 ##############################################################################
 # Example main code
 ##############################################################################
-def run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="default"):
-    def random_pi(h, s):
-        return env.random_pi()
-    R_rand = evaluate(env=env, pi_func=random_pi)
-    for n1 in range(1,8):
-        print(f"N1={n1}")
-        N2s = []
-        R1s = []
-        plt.clf()
-        plt.figure(figsize=(10, 6))
-        for n2 in range(20):
-            print(f"N1={n1},N2={n2}")
-            N1 = n1
-            N2 = n2
-            env.reset_rng(seed=0)
-            D1, D2 = env.gen_dataset(N1=N1,N2=N2,H=H)
-            pi_hat = data_sharing_kernel_approx(
-                D1, D2,
-                env.H,
-                beta_h_func, delta,
-                B, nu, lamda, env.A
-            )
-            R1 = evaluate(env=env, pi_func=pi_hat)
-            #print(f"N1={N1},N2={N2},R1={:.3f},:.3f}")
-            N2s.append(N2)
-            R1s.append(R1)
-        plt.plot(N2s, R1s, label=f'N1={n1}')
-        plt.axhline(y=R_rand, color='r', linestyle='--', label=f'R_rand = {R_rand}')
-        plt.xlabel('N2')
-        plt.ylabel('R1')
-        plt.title('Plot of R1 vs N2 with R_rand Line')
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(f"results/{output_name}_N1_{n1}.png")
 
-def run_default_settings():
-    H = 10
 
-    delta = 0.1
-    B = 0.05
-    nu = 0.005
-    lamda = 0.005
-    beta_h_func = 0.05
-
-    env = EnvLinear(H=H, seed=0, s_size=5, a_size=5)
-    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="linear_env1")
-
-def run_param_settings():
-    H = 10
-
-    delta = 0.1
-    B = 2
-    nu = 0.005
-    lamda = 0.005
-
-    env = EnvLinear()
-
-    # Set beta_h_func
-    N1=5
-    d = env.s_size+env.a_size
-    zeta_2 = np.log((2*d*N1)/delta)
-    beta_h_func = 2*(d*zeta_2)
-
-    env = EnvLinear(H=H, seed=0, s_size=5, a_size=5)
-    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="linear_params")
-
-def run_default_settings2():
-    H = 10
-
-    delta = 0.1
-    B = 0.05
-    nu = 0.005
-    lamda = 0.005
-    beta_h_func = 0.05
-
-    env = EnvLinear2(H=H, seed=0, s_size=8)
-    run_experiment(H, env, delta, B, nu, lamda, beta_h_func, output_name="linear_env2")
 
 def run_debug():
-    H = 10
+    H = 6
     delta = 0.1
     B = 0.05
     beta_h_func = 0.05
     lamda = 1
     nu = 1
-    N1 = 100
+
+    N1 = 200
     N2 = 10
     print(f"N1={N1},N2={N2}")
 
-    env = EnvLinear2(s_size=8, H=H)
+    env = EnvKernelBandit(s_size=8, H=H)
+    print(f"env.R={env.R}")
     env.reset_rng(seed=0)
     D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
     print(env.H)
-    pi_hat = data_sharing_kernel_approx(
-        D1, D2,
-        env.H,
-        beta_h_func, delta,
-        B, nu, lamda, env.A
-    )
+    pi_hat = data_sharing_kernel_approx(D1, D2, env, beta_h_func, delta, B, nu, lamda)
 
     def random_pi(h, s):
         return env.random_pi()
@@ -391,6 +319,4 @@ def run_debug():
 
 
 if __name__ == "__main__":
-    #run_default_settings()
-    #run_default_settings2()
     run_debug()

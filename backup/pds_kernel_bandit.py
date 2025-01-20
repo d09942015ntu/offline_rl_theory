@@ -238,7 +238,7 @@ def run_debug():
     N1=100
     N2=10
     env = EnvKernelBandit(s_size=8, H=H)
-    print(f"env.R={env.R}")
+    print(f"env.R={env._R}")
     env.reset_rng(seed=0)
     D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
     print(env.H)

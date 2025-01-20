@@ -93,7 +93,7 @@ class PDS(object):
         Zh = np.array([self.phi(s, a) for s, a in zip(Sh, Ah)])
         return Sh, Ah, Rh, Zh
 
-    def fit_reward_function(self, D1, nu, b_h_func):
+    def fit_reward_function(self, D1, nu, beta):
         H = self.env.H
         reward_fn = []
 
@@ -105,7 +105,7 @@ class PDS(object):
             lambda_inv = np.linalg.inv(K + nu * np.eye(len(Sh)))
             alpha = lambda_inv.dot(Rh)
 
-            reward_fn.append(RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, nu, self.env.A, b_h_func, h , H))
+            reward_fn.append(RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, nu, self.env.A, beta, h, H))
 
         return reward_fn
 
@@ -158,9 +158,9 @@ class PDS(object):
         return rl_fn
 
 
-    def data_sharing_kernel_approx(self, D1, D2, beta_h_func,  B, nu, lamda):
+    def data_sharing_kernel_approx(self, D1, D2, beta, B, nu, lamda):
         # 1) Learn the reward function \hat{\theta}_h
-        reward_fn = self.fit_reward_function(D1, nu, beta_h_func)
+        reward_fn = self.fit_reward_function(D1, nu, beta)
 
         ## 2) Relabel unlabeled data D2 with tilde{theta}
         Dtheta = self.relabel_unlabeled_data(D1, D2, reward_fn)

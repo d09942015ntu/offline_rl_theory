@@ -45,7 +45,6 @@ class EnvKernel(object):
     def gen_init_states(self):
         return round(self.gaussian_sampler(1, var=self.variance),2)
 
-
     def gen_a_trans(self):
         return self.rng.permutation(list(range(self.s_size)))
 

@@ -79,18 +79,18 @@ def fit_reward_function(D1, env, nu):
         K = np.zeros((len(Sh),len(Sh)),)
         for i,zi in enumerate(Zh):
             for j,zj in enumerate(Zh):
-                K[i,j] = env.kernel(zi,zj)
+                K[i,j] = env._kernel(zi, zj)
 
         lambda_inv = np.linalg.inv(K + nu * np.eye(len(Sh)))
         alpha = lambda_inv.dot(Rh)
 
         def mean_kernel_sample(z):
-            k_array = np.array([env.kernel(z,zi) for zi in Zh])
+            k_array = np.array([env._kernel(z, zi) for zi in Zh])
             return k_array.dot(alpha)
 
         def var_kernel_sample(z):
-            k_array = np.array([env.kernel(z,zi) for zi in Zh])
-            return (nu**0.5)*((env.kernel(z,z) - np.dot(np.dot(lambda_inv,k_array),k_array))**0.5)
+            k_array = np.array([env._kernel(z, zi) for zi in Zh])
+            return (nu**0.5)*((env._kernel(z, z) - np.dot(np.dot(lambda_inv, k_array), k_array)) ** 0.5)
 
 
         # Save
@@ -305,7 +305,7 @@ def run_debug():
     print(f"N1={N1},N2={N2}")
 
     env = EnvKernelBandit(s_size=8, H=H)
-    print(f"env.R={env.R}")
+    print(f"env.R={env._R}")
     env.reset_rng(seed=0)
     D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
     print(env.H)

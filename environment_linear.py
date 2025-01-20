@@ -8,11 +8,9 @@ class EnvLinear(object): #Refactor done
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
         self.s_size = s_size
-        self.a_size = self.s_size
         self.H = H
-        self.S = list(range(self.s_size))
         self.A = list(range(self.s_size))
-        self._P = self.gen_transition()
+        self._P = self._gen_transition()
         self._S = np.eye(self.s_size)
         self._A = np.eye(self.s_size)
         self._R = self._gen_reward()
@@ -40,6 +38,15 @@ class EnvLinear(object): #Refactor done
         _z = np.matmul(_s[:,np.newaxis],_a[np.newaxis,:]).reshape((self.s_size*self.s_size,))
         return _z
 
+    def _gen_transition(self):
+        self.reset_rng(self.seed)
+        all_p = []
+        for i in range(self.s_size):
+            pi = self.rng.permutation(np.eye(self.s_size))
+            all_p.append(pi)
+        P = np.concatenate(all_p,axis=1)
+        return P
+
     def reset_rng(self, seed=0):
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
@@ -50,17 +57,6 @@ class EnvLinear(object): #Refactor done
 
     def random_pi(self):
         return np.argmax(self._random_pi())
-
-
-    def gen_transition(self):
-        self.reset_rng(self.seed)
-        all_p = []
-        for i in range(self.s_size):
-            pi = self.rng.permutation(np.eye(self.s_size))
-            all_p.append(pi)
-        P = np.concatenate(all_p,axis=1)
-        return P
-
 
 
     def get_r_sn(self, s, a):

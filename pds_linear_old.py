@@ -366,8 +366,10 @@ def run_debug():
     delta = 0.1
     B = 0.05
     beta_h_func = 0.05
+
     lamda = 1
     nu = 1
+
     N1 = 100
     N2 = 10
     print(f"N1={N1},N2={N2}")

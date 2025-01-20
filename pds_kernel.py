@@ -75,11 +75,13 @@ class PDS(object):
 
             def mean_kernel_sample(z):
                 k_array = np.array([self.kernel(z,zi) for zi in Zh])
-                return k_array.dot(alpha)
+                result = k_array.dot(alpha)
+                return result
 
             def var_kernel_sample(z):
                 k_array = np.array([self.kernel(z,zi) for zi in Zh])
-                return (nu**0.5)*((self.kernel(z,z) - np.dot(np.dot(lambda_inv,k_array),k_array))**0.5)
+                result = (nu**0.5)*((self.kernel(z,z) - np.dot(np.dot(lambda_inv,k_array),k_array))**0.5)
+                return result
 
 
             reward_fn[h] = mean_kernel_sample, var_kernel_sample
@@ -92,14 +94,13 @@ class PDS(object):
 
         for h in range(self.env.H):
             mean_kernel_sample, var_kernel_sample = theta_hat[h]
-            theta_tilde_fn[h] = lambda z : mean_kernel_sample(z) - beta_h * var_kernel_sample(z)
+            theta_tilde_fn[h] = lambda z : max(mean_kernel_sample(z) - beta_h * var_kernel_sample(z),0)
 
         return theta_tilde_fn
 
 
-    def relabel_unlabeled_data(self, D1, D2, reward_fn, beta_h_func):
+    def relabel_unlabeled_data(self, D1, D2, theta_tilde_fn):
 
-        theta_tilde_fn = self.build_pessimistic_reward(reward_fn, beta_h_func)
 
         D2_tilde = [[] for _ in range(self.env.H)]
 
@@ -146,38 +147,38 @@ class PDS(object):
 
             if h == H-1:
                 Rh_p_V = Rh
-
             else:
-                Rh_p_V =   [r+Vhat[h+1](s) for r,s in zip(Rh,Sh1)]
+                Rh_p_V = [r+Vhat[h+1](s) for r,s in zip(Rh,Sh1)]
 
             lambda_inv = np.linalg.inv(K + lamda * np.eye(len(Sh)))
             alpha = lambda_inv.dot(Rh_p_V)
 
             def mean_kernel_sample(z):
                 k_array = np.array([self.kernel(z,zi) for zi in Zh])
-                return k_array.dot(alpha)
+                result = k_array.dot(alpha)
+                return result
 
             def var_kernel_sample(z):
                 k_array = np.array([self.kernel(z,zi) for zi in Zh])
-                return (lamda**0.5)*((self.kernel(z,z) - np.dot(np.dot(lambda_inv,k_array),k_array))**0.5)
+                uncertainty = max(self.kernel(z,z) - np.dot(np.dot(lambda_inv,k_array),k_array),0)
+                result = (lamda**0.5)*((uncertainty)**0.5)
+                return result
 
             def Qhat_h_func(s,a):
                 z = self.phi(s, a)
-                return np.clip(mean_kernel_sample(z) - B * var_kernel_sample(z), 0, H-h)
-
-
-            Qhat[h] = Qhat_h_func
+                result = np.clip(mean_kernel_sample(z) - B * var_kernel_sample(z), 0, H-h)
+                return result
 
             def Vhat_h_func(s):
                 max_q, _ = max([(Qhat_h_func(s,a),a) for a in Aspace],key=lambda x:x[0])
                 return max_q
 
+            Qhat[h] = Qhat_h_func
             Vhat[h] = Vhat_h_func
             Sh1 = Sh
 
         def policy_fn(h, s):
-            Qhat_h_func = Qhat[h]
-            _, max_a  = max([(Qhat_h_func(s, a), a) for a in Aspace], key=lambda x: x[0])
+            _, max_a  = max([(Qhat[h](s, a), a) for a in Aspace], key=lambda x: x[0])
             return max_a
 
         pi_hat = policy_fn
@@ -194,17 +195,18 @@ class PDS(object):
 
         theta_tilde_fn = self.build_pessimistic_reward(reward_fn, beta_h_func)
 
-        def policy_fn(h, s):
+        def pi_bandit_hat(h, s):
             _, max_a = max([(theta_tilde_fn[h](self.phi(s, a)), a) for a in self.env.A], key=lambda x: x[0])
             return max_a
 
         ## 2) Relabel unlabeled data D2 with tilde{theta}
-        Dtheta = self.relabel_unlabeled_data(D1, D2, reward_fn, beta_h_func)
+        Dtheta = self.relabel_unlabeled_data(D1, D2, theta_tilde_fn)
 
         ## 3) Learn the policy from the relabeled dataset using PEVI (Algorithm 2)
         pi_hat = self.pevi_kernel_approx(Dtheta, B, lamda)
 
-        return policy_fn
+        return pi_bandit_hat, pi_hat
+        #return pi_hat
 
 
 def kernel(z1, z2, variance=3):
@@ -227,31 +229,30 @@ def evaluate(env, pi_func):
 
 
 
-def run_debug():
-    H = 6
+def run_debug_kernel_bandit():
+    H = 10
     delta = 0.1
     B = 0.05
     beta_h_func = 0.05
     lamda = 1
     nu = 1
-
-    N1=200
-    N2=10
+    N1 = 100
+    N2 = 10
     env = EnvKernelBandit(s_size=8, H=H)
-    print(f"env.R={env.R}")
     env.reset_rng(seed=0)
     D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
     print(env.H)
     pds = PDS(env=env,kernel=kernel)
-    pi_hat = pds.data_sharing_kernel_approx( D1, D2, beta_h_func, B, nu, lamda)
+    pi_bandit_hat, pi_hat = pds.data_sharing_kernel_approx( D1, D2, beta_h_func, B, nu, lamda)
 
     def random_pi(h, s):
         return env.random_pi()
-    R1 = evaluate(env=env, pi_func=pi_hat)
+    R1 = evaluate(env=env, pi_func=pi_bandit_hat)
+    R2 = evaluate(env=env, pi_func=pi_hat)
     Rrand = evaluate(env=env, pi_func=random_pi)
-    print(f"R1={R1}, Rrand={Rrand}")
+    print(f"R1={R1}, R2={R2}, Rrand={Rrand}")
 
 
 if __name__ == "__main__":
-    run_debug()
+    run_debug_kernel_bandit()
     pass

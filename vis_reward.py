@@ -81,7 +81,7 @@ def visualize_distribution_theory_tikz(n1s,n2s,r_vals, fname):
     grid=major,
     grid style={dashed,gray!30},
     xmin=10, xmax=500,
-    ymin=4, ymax=7,
+    ymin=4, ymax=6.5,
     xlabel={$N_2$},
     ylabel={$V_1^{\\pi}(s)$},
     font=\\scriptsize,

@@ -52,8 +52,10 @@ def run():
             'linear': EnvLinear(s_size=s_size, H=H),
             }
 
-    n1s = [10, 20, 50, 100]
-    n2s = [0, 20, 50, 100, 200, 500, 1000]
+    n1s = [1, 2, 5, 10, 20, 50, 100, 200, 500]
+    #n1s = [200, 500, 1000]
+    n2s = [1, 2, 5, 10, 20, 50, 100, 200, 500]
+    #n2s = [10]
 
     for ekey, env in envs.items():
         pds = PDSKernel(env=env, kernel=kernel_gaussian, phi=phi_tuple)

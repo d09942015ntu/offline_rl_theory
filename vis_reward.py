@@ -63,7 +63,61 @@ def regression_theory():
     visualize_distribution_theory(n1s,n2s,r_exp,"exp")
     visualize_distribution_theory(n1s,n2s,r_theory,"theory")
 
+    visualize_distribution_theory_tikz(n1s,n2s,r_exp,"exp")
+    visualize_distribution_theory_tikz(n1s,n2s,r_theory,"theory")
+
+def visualize_distribution_theory_tikz(n1s,n2s,r_vals, fname):
+    f = open(f"results/plot_{fname}.tex","w")
+    fdict={
+        "theory":"Theoretical",
+        "exp":"Experimental",
+    }
+    f.write("""
+\\begin{tikzpicture}
+    \\begin{axis}[
+    width=8cm,
+    height=5cm,
+    legend pos=south east,
+    grid=major,
+    grid style={dashed,gray!30},
+    xmin=10, xmax=500,
+    ymin=4, ymax=7,
+    xlabel={$N_2$},
+    ylabel={$V_1^{\\pi}(s)$},
+    font=\\scriptsize,
+    title={WORD1 Values of $V_1^{\\pi}(s)$},
+    xlabel style={
+        at={(current axis.south east)}, % Relative positioning
+        anchor=north east,              % Anchoring at a specific point
+        yshift=5pt,                   % Shifting downward
+        xshift=10pt                      % Shifting rightward (if needed)
+    },
+    ylabel style={
+        at={(current axis.north west)}, % Relative positioning
+        anchor=north east,              % Anchoring at a specific point
+        yshift=-10pt,                   % Shifting downward
+        xshift=20pt                      % Shifting rightward (if needed)
+    },
+]
+""".replace("WORD1",fdict[fname]))
+    for i,n1 in enumerate(n1s):
+        f.write("\\addplot[c%s, thick] table[row sep=\\\\]{\nx y \\\\ \n"%(i+1))
+        for n2 in n2s:
+            print(n1, n2)
+            if (n1,n2) in r_vals.keys():
+                #r1e.append(r_vals[(n1,n2)])
+                #n2s_plot.append(n2)
+                #plt.plot(n2s_plot, r1e, label=f'$N_1={n1}$', color=colors[i])
+                r1 = r_vals[(n1,n2)]
+                f.write(f" {n2}  {r1} \\\\ \n")
+        f.write("};\n")
+        f.write("\\addlegendentry{$N_1=%s$}\n"%n1)
+    f.write("""\\end{axis}
+\\end{tikzpicture}
+""" )
+
 def visualize_distribution_theory(n1s,n2s,r_vals, fname):
+
     plt.clf()
     plt.figure(figsize=(10, 6))
     for i,n1 in enumerate(n1s):
@@ -83,7 +137,6 @@ def visualize_distribution_theory(n1s,n2s,r_vals, fname):
     plt.legend()
     plt.grid(True)
     plt.savefig(f"results/out_{fname}.png")
-
 
 if __name__ == '__main__':
     regression_theory()

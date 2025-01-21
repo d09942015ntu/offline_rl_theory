@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 def evaluate(env, pi_func):
     r1s = []
-    for i in range(100):
+    for i in range(10):
         env.reset_rng(i)
         r1 = 0
         sn =env.gen_init_states()
@@ -23,9 +23,14 @@ def evaluate(env, pi_func):
     return np.average(r1s)
 
 def env_experiments(env, pds, n1, n2, H):
-    D1, D2 = env.gen_dataset(N1=n1, N2=n2, H=H)
-    pi_hat, pi_bandit_hat= pds.data_sharing_kernel_approx(D1, D2)
-    r1 = evaluate(env=env, pi_func=pi_hat)
+    r1s = []
+    for i in range(10):
+        env.reset_rng(i)
+        D1, D2 = env.gen_dataset(N1=n1, N2=n2, H=H)
+        pi_hat, pi_bandit_hat= pds.data_sharing_kernel_approx(D1, D2)
+        r1 = evaluate(env=env, pi_func=pi_hat)
+        r1s.append(r1)
+    r1 = np.average(r1s)
     print(f"N1={n1}, N2={n2}, R1={r1}")
     return r1
 
@@ -48,14 +53,17 @@ def run():
     s_size = 8
     envs = {
             'kernel' : EnvKernel(s_size=s_size,H=H),
-            'kernel_bandit': EnvKernelBandit(s_size=s_size, H=H),
-            'linear': EnvLinear(s_size=s_size, H=H),
+            #'kernel_bandit': EnvKernelBandit(s_size=s_size, H=H),
+            #'linear': EnvLinear(s_size=s_size, H=H),
             }
 
-    n1s = [1, 2, 5, 10, 20, 50, 100, 200, 500]
-    #n1s = [200, 500, 1000]
-    n2s = [1, 2, 5, 10, 20, 50, 100, 200, 500]
+    #n1s = [1, 2, 5, 10, 20, 50, 100, 200, 500]
+    ##n1s = [200, 500, 1000]
+    #n2s = [1, 2, 5, 10, 20, 50, 100, 200, 500]
     #n2s = [10]
+
+    n1s = [10,20,50,100]
+    n2s = [10,20,50,100,200,500]
 
     for ekey, env in envs.items():
         pds = PDSKernel(env=env, kernel=kernel_gaussian, phi=phi_tuple)

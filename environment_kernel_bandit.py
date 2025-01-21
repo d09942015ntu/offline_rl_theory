@@ -101,7 +101,7 @@ def debug_trans():
             for p in range(200):
                 s_prime = env._get_sn(s, a)
                 s_primes.append(s_prime)
-            visualize_distribution(s_primes, fname=f"results/fig_s_{s}_t_|{"|".join([str(int(x + s * env._s_coeff) % env.s_size) for x in env.a_trans])}|_a_{a}.png")
+            visualize_distribution(s_primes, fname=f"results/fig_s_{s}_t_|{'|'.join([str(int(x + s * env._s_coeff) % env.s_size) for x in env.a_trans])}|_a_{a}.png")
             print(f"s1={s}")
 
 if __name__ == '__main__':

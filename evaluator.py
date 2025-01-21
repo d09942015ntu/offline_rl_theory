@@ -4,6 +4,7 @@ import json
 from environment_linear import EnvLinear
 from environment_kernel_bandit import EnvKernelBandit
 from environment_kernel import EnvKernel
+from environment_kernel2 import EnvKernel2
 from pds_kernel import PDSKernel, kernel_gaussian, phi_tuple
 import matplotlib.pyplot as plt
 ##############################################################################
@@ -52,7 +53,7 @@ def run():
     H = 8
     s_size = 8
     envs = {
-            'kernel' : EnvKernel(s_size=s_size,H=H),
+            'kernel2' : EnvKernel2(s_size=s_size,H=H),
             #'kernel_bandit': EnvKernelBandit(s_size=s_size, H=H),
             #'linear': EnvLinear(s_size=s_size, H=H),
             }
@@ -62,7 +63,7 @@ def run():
     #n2s = [1, 2, 5, 10, 20, 50, 100, 200, 500]
     #n2s = [10]
 
-    n1s = [10,20,50,100]
+    n1s = [10,20,50,100,200]
     n2s = [10,20,50,100,200,500]
 
     for ekey, env in envs.items():
@@ -72,6 +73,7 @@ def run():
             def random_pi(h, s):
                 return env.random_pi()
             r_rand = evaluate(env=env, pi_func=random_pi)
+            print(f"r_rand={r_rand}")
             plt.clf()
             plt.figure(figsize=(10, 6))
             r1s = []

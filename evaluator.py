@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 def evaluate(env, pi_func):
     r1s = []
-    for i in range(20):
+    for i in range(2):
         env.reset_rng(i)
         r1 = 0
         sn =env.gen_init_states()
@@ -25,7 +25,7 @@ def evaluate(env, pi_func):
 
 def env_experiments(env, pds, n1, n2, H):
     r1s = []
-    for i in range(50):
+    for i in range(5):
         env.reset_rng(i)
         D1, D2 = env.gen_dataset(N1=n1, N2=n2, H=H)
         pi_hat, pi_bandit_hat= pds.data_sharing_kernel_approx(D1, D2)

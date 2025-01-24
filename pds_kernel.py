@@ -79,7 +79,10 @@ class PDSKernel(object):
                 K[i, j] = self.kernel(zi, zj)
 
         lambda_inv = np.linalg.inv(K + lamda * np.eye(len(Zh)))
+        #try:
         alpha = lambda_inv.dot(Rh)
+        #except:
+        #    print(1)
         return K, lambda_inv, alpha
 
     def data_preprocessing(self, D, h):
@@ -142,8 +145,14 @@ class PDSKernel(object):
 
             Sh, Ah, Rh, Zh = self.data_preprocessing(Dtheta, h)
 
+
             if len(rl_fn) > 0:
-                Rh_p_V = [r + rl_fn[0].Vhat_h_func(s) for r,s in zip(Rh, Sh1)]
+                Rh_p_V = []
+                for r in Rh:
+                    Rh_p_V.append(r)
+                for i,s in enumerate(Sh1):
+                    Rh_p_V[i] += rl_fn[0].Vhat_h_func(s)
+                #Rh_p_V = [r + rl_fn[0].Vhat_h_func(s) for r,s in zip(Rh, Sh1)]
             else:
                 Rh_p_V = Rh
 
@@ -152,7 +161,7 @@ class PDSKernel(object):
             rewad_eval =  RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, self.lamda2, self.env.A, self.beta2, h, self.env.H)
 
             rl_fn.insert(0,rewad_eval)
-            Sh1 = Sh
+            Sh1 = Sh.tolist()
 
 
         return rl_fn
@@ -182,9 +191,34 @@ def phi_tuple(s, a):
     z = (s,a)
     return z
 
+def phi_array(s, a):
+    s = list(s)
+    z = s+[a]
+    z = tuple(z)
+    return z
+
+def phi_linear(s, a):
+    s = list(s)
+    z = s+[a]+[1]
+    z = tuple(z)
+    return z
+
+def phi_quadratic(s, a):
+    s = list(s)
+    z = np.array(s+[a]+[1])
+    z = tuple(np.matmul(z[:,np.newaxis],z[np.newaxis,:]).flatten())
+    return z
+
+def kernel_linear(z1,z2):
+    return np.dot(z1,z2)
+
+
 def kernel_gaussian(z1, z2, variance=3):
     #normalizing_const = math.sqrt(math.pi / variance)
-    return math.exp(- variance * ((z1[0] - z2[0]) ** 2 + (z1[1] - z2[1]) ** 2)) #/ normalizing_const
+    dist = 0
+    for z1i, z2i in zip(z1,z2):
+        dist += (z1i -z2i)**2
+    return math.exp(- variance * dist) #/ normalizing_const
 
 def evaluate(env, pi_func):
     R1 = []

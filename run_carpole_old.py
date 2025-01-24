@@ -50,18 +50,33 @@ LEARNING_RATE = 0.1
 DISCOUNT = 0.95
 EPISODES = 12000
 LOG_FREQUENCY = 2000
+#epsilon = 1
 epsilon = 0.1
 START_DECAY = 1
 END_DECAY = EPISODES // 2
 epsilon_decay_by = epsilon / (END_DECAY - START_DECAY)
+#H =60
 
-rewards = []
+epislde_length=40
+
+rewards = [0]
+epislde_steps = [0]
 for episode in range(EPISODES):
     #Just some logging info
     if episode % LOG_FREQUENCY == 0:
         render = True
-        print(f"Episode {episode}, Reward={np.average(rewards)}")
+        print(f"------------------"
+              f"Episode {episode}\n "
+              f"Reward={np.average(rewards)}\n"
+              f"Epislde step={np.average(epislde_steps)}\n"
+              f"Max Epislde step={np.max(epislde_steps)}\n"
+              f"Epislde step 40={len([x for x in epislde_steps if x > 40])/len(epislde_steps)}\n"
+              f"Epislde step 60={len([x for x in epislde_steps if x > 60])/len(epislde_steps)}\n"
+              f"Epislde step 80={len([x for x in epislde_steps if x > 80])/len(epislde_steps)}\n"
+              f"Epislde step 100={len([x for x in epislde_steps if x > 100])/len(epislde_steps)}\n"
+              )
         rewards.clear()
+        epislde_steps.clear()
     else:
         render = False    #Resetting the environment as well as getting state 0
     discrete_state = get_discrete_state(env.reset()[0])
@@ -85,5 +100,6 @@ for episode in range(EPISODES):
             q_table[discrete_state + (action, )] = new_q
             discrete_state = new_discrete_state    #Decay epsilon
     rewards.append(np.sum(reward_eposodes))
+    epislde_steps.append(len(reward_eposodes))
     if END_DECAY >= episode >= START_DECAY:
         epsilon -= epsilon_decay_by

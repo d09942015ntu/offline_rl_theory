@@ -9,8 +9,9 @@ from environment_kernel_bandit import EnvKernelBandit
 from environment_kernel import EnvKernel
 from environment_kernel2 import EnvKernel2
 from environment_carpole import EnvCarpole
+from environment_fzlake import EnvFrozenLake
 from pds_kernel import (PDSKernel, kernel_gaussian, kernel_linear,
-                        phi_tuple, phi_array, phi_linear_2, phi_quadratic_2)
+                        phi_tuple, phi_array, phi_linear_2, phi_quadratic_2, phi_tabular_64_4, phi_array_64_4)
 import matplotlib.pyplot as plt
 ##############################################################################
 
@@ -60,9 +61,9 @@ def plot_result(n2s, r1s, r_rand, fname):
 def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="results", repeat=1):
     arg_str=f"n1s={n1s},n2s={n2s}, arg_kernel={arg_kernel},arg_phi={arg_phi}, output_dir={output_dir}, repeat={repeat}"
     print(arg_str)
-    H = 100
+    H = 20
     envs = {
-            'carpole' : EnvCarpole(H=H),
+            'carpole' : EnvFrozenLake(H=H),
             #'kernel_bandit': EnvKernelBandit(s_size=s_size, H=H),
             #'linear': EnvLinear(s_size=s_size, H=H),
             }
@@ -77,11 +78,9 @@ def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="r
         kernel = kernel_gaussian
 
     if arg_phi == 'phi_array':
-        phi = phi_array
-    elif arg_phi == 'phi_linear':
-        phi = phi_linear_2
-    elif arg_phi == 'phi_quadratic':
-        phi = phi_quadratic_2
+        phi = phi_array_64_4
+    elif arg_phi == 'phi_tabular':
+        phi = phi_tabular_64_4
     else:
         phi = phi_array
 
@@ -116,9 +115,9 @@ def main():
     parser = argparse.ArgumentParser(description="Process some inputs.")
 
     parser.add_argument('--kernel', type=str,  choices=['kernel_linear', 'kernel_gaussian'], default='kernel_linear')
-    parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_linear','phi_quadratic'], default='phi_quadratic')
+    parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_tabular'], default='phi_tabular')
     parser.add_argument('--output_dir', type=str,  default='results')
-    parser.add_argument('--repeat', type=int,  default=1)
+    parser.add_argument('--repeat', type=int,  default=10)
     parser.add_argument('--n1s', type=int, default=5)
     parser.add_argument('--n2s', type=int, default=6)
 
@@ -126,8 +125,10 @@ def main():
     args = parser.parse_args()
 
     # Call the function with arguments
-    n1s = [20,50,100,200][:args.n1s]
-    n2s = [10,20,50,100,200,500][:args.n2s]
+    #n1s = [1000,200,500,1000][:args.n1s]
+    #n2s = [10,20,50,100,200,500][:args.n2s]
+    n1s = [200][:args.n1s]
+    n2s = [200,500,1000][:args.n2s]
 
     run(n1s, n2s, args.kernel, args.phi, args.output_dir, args.repeat)
 

@@ -30,18 +30,27 @@ def evaluate(env, pi_func, repeat):
         r1s.append(r1)
     return np.average(r1s)
 
-def env_experiments(env, pds, n1, n2, H, repeat):
-    r1s = []
-    for i in range(repeat):
+def env_experiments(env, pds, n1, n2, H, output_dir, seed_start, repeat, repeat2):
+    for i in range(seed_start,seed_start+repeat):
         env.reset_rng(i)
         D1, D2 = env.gen_dataset(N1=n1, N2=n2, H=H)
         pi_hat, pi_bandit_hat= pds.data_sharing_kernel_approx(D1, D2)
-        r1 = evaluate(env=env, pi_func=pi_hat, repeat=repeat)
-        r1s.append(r1)
-        print(f"Repeat={i}: N1={n1}, N2={n2}, R1={r1}")
-    r1 = np.average(r1s)
-    print(f"Average: N1={n1}, N2={n2}, R1={r1}")
-    return r1
+        r1 = evaluate(env=env, pi_func=pi_hat, repeat=repeat2)
+
+        os.makedirs(output_dir,exist_ok=True)
+        fname = f"{output_dir}/i_{i}_n1_{n1}_n2_{n2}.json"
+        json_str = json.dumps({'i':i,'n1':n1, 'n2': n2, 'r1': r1})
+        print(json_str)
+        f = open(fname,"w")
+        f.write(json_str)
+        f.close()
+        #print(f"Repeat={i}: N1={n1}, N2={n2}, R1={r1}")
+        #fname = f"{output_dir}/env_{ekey}_n1_{n1}.json"
+        #json.dump({'n2': n2s, 'r1': r1s, 'rrand': r_rand}, open(fname.replace(".png", ".json"), "w"), indent=2)
+
+    #r1 = np.average(r1s)
+    #print(f"Average: N1={n1}, N2={n2}, R1={r1}")
+    #return r1
 
 def plot_result(n2s, r1s, r_rand, fname):
     plt.clf()
@@ -57,7 +66,7 @@ def plot_result(n2s, r1s, r_rand, fname):
     json.dump({'n2':n2s, 'r1':r1s, 'rrand':r_rand},open(fname.replace(".png",".json"),"w"), indent=2 )
 
 
-def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="results", repeat=1):
+def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="results", seed_start=0, repeat=1, repeat2=1):
     arg_str=f"n1s={n1s},n2s={n2s}, arg_kernel={arg_kernel},arg_phi={arg_phi}, output_dir={output_dir}, repeat={repeat}"
     print(arg_str)
     H = 100
@@ -99,17 +108,14 @@ def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="r
         for n1 in n1s: #,100]:
             def random_pi(h, s):
                 return env.random_pi()
-            r_rand = evaluate(env=env, pi_func=random_pi, repeat=repeat)
+            r_rand = evaluate(env=env, pi_func=random_pi, repeat=repeat2)
             print(f"r_rand={r_rand}")
             plt.clf()
             plt.figure(figsize=(10, 6))
-            r1s = []
             for n2 in n2s:
-                r1 = env_experiments(env, pds, n1, n2, H, repeat)
-                r1s.append(r1)
+                env_experiments(env, pds, n1, n2, H, output_dir, seed_start, repeat, repeat2)
 
-            fname = f"{output_dir}/env_{ekey}_n1_{n1}.png"
-            plot_result(n2s, r1s, r_rand, fname)
+
 
 
 
@@ -121,7 +127,8 @@ def main():
     parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_linear','phi_quadratic','phi_cubic'], default='phi_cubic')
     parser.add_argument('--output_dir', type=str,  default='results')
     parser.add_argument('--repeat', type=int,  default=5)
-
+    parser.add_argument('--repeat2', type=int,  default=20)
+    parser.add_argument('--seed_start', type=int,  default=0)
     parser.add_argument('--n1s', type=int, nargs='+', default=[20,50,100,200])
     parser.add_argument('--n2s', type=int, nargs='+', default=[10,20,50,100,200,500])
 
@@ -129,7 +136,7 @@ def main():
     args = parser.parse_args()
 
 
-    run(args.n1s, args.n2s, args.kernel, args.phi, args.output_dir, args.repeat)
+    run(args.n1s, args.n2s, args.kernel, args.phi, args.output_dir, args.seed_start, args.repeat, args.repeat2)
 
 if __name__ == "__main__":
     main()

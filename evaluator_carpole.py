@@ -11,7 +11,7 @@ from environment_kernel2 import EnvKernel2
 from environment_carpole import EnvCarpole
 from pds_kernel import (PDSKernel, kernel_gaussian, kernel_linear,
                         phi_tuple, phi_array, phi_linear_2, phi_quadratic_2, phi_cubic_2)
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 ##############################################################################
 
 
@@ -52,18 +52,18 @@ def env_experiments(env, pds, n1, n2, H, output_dir, seed_start, repeat, repeat2
     #print(f"Average: N1={n1}, N2={n2}, R1={r1}")
     #return r1
 
-def plot_result(n2s, r1s, r_rand, fname):
-    plt.clf()
-    plt.figure(figsize=(10, 6))
-    plt.plot(n2s, r1s)
-    plt.axhline(y=r_rand, color='r', linestyle='--', label=f'R_rand = {r_rand}')
-    plt.xlabel('N2')
-    plt.ylabel('R1')
-    plt.title('Plot of R1 vs N2 with R_rand Line')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(fname)
-    json.dump({'n2':n2s, 'r1':r1s, 'rrand':r_rand},open(fname.replace(".png",".json"),"w"), indent=2 )
+#def plot_result(n2s, r1s, r_rand, fname):
+#    plt.clf()
+#    plt.figure(figsize=(10, 6))
+#    plt.plot(n2s, r1s)
+#    plt.axhline(y=r_rand, color='r', linestyle='--', label=f'R_rand = {r_rand}')
+#    plt.xlabel('N2')
+#    plt.ylabel('R1')
+#    plt.title('Plot of R1 vs N2 with R_rand Line')
+#    plt.legend()
+#    plt.grid(True)
+#    plt.savefig(fname)
+#    json.dump({'n2':n2s, 'r1':r1s, 'rrand':r_rand},open(fname.replace(".png",".json"),"w"), indent=2 )
 
 
 def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="results", seed_start=0, repeat=1, repeat2=1):
@@ -110,8 +110,6 @@ def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="r
                 return env.random_pi()
             r_rand = evaluate(env=env, pi_func=random_pi, repeat=repeat2)
             print(f"r_rand={r_rand}")
-            plt.clf()
-            plt.figure(figsize=(10, 6))
             for n2 in n2s:
                 env_experiments(env, pds, n1, n2, H, output_dir, seed_start, repeat, repeat2)
 

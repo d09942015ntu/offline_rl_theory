@@ -25,3 +25,6 @@ python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_quadratic --output
 python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_quadratic --output_dir=results/kernel_quadratic_200 --repeat=50 --n1s 200 &
 python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_linear --output_dir=results/kernel_linear_100 --repeat=50 --n1s 100 &
 python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_linear --output_dir=results/kernel_linear_200 --repeat=50 --n1s 200 &
+
+python3 evaluator_carpole.py --kernel=kernel_gaussian --phi=phi_array --output_dir=results/kernel_linear_100 --repeat=50 --n1s 100 &
+python3 evaluator_carpole.py --kernel=kernel_gaussian --phi=phi_array --output_dir=results/kernel_linear_200 --repeat=50 --n1s 200 &

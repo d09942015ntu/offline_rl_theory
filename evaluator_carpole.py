@@ -121,11 +121,9 @@ def main():
     parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_linear','phi_quadratic','phi_cubic'], default='phi_cubic')
     parser.add_argument('--output_dir', type=str,  default='results')
     parser.add_argument('--repeat', type=int,  default=5)
-    parser.add_argument('--n1s', type=int, default=5)
-    parser.add_argument('--n2s', type=int, default=6)
 
     parser.add_argument('--n1s', type=int, nargs='+', default=[20,50,100,200])
-    parser.add_argument('--n2s', type=int, nargs='+', default= [10,20,50,100,200,500])
+    parser.add_argument('--n2s', type=int, nargs='+', default=[10,20,50,100,200,500])
 
     # Parse the arguments
     args = parser.parse_args()

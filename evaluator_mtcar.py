@@ -12,7 +12,9 @@ from environment_carpole import EnvCarpole
 from environment_fzlake import EnvFrozenLake
 from environment_mtcar import EnvMTCar
 from pds_kernel import (PDSKernel, kernel_gaussian, kernel_linear,
-                        phi_tuple, phi_array, phi_linear_2, phi_quadratic_1, phi_quadratic_2, phi_tabular_64_4, phi_array_64_4)
+                        phi_tuple, phi_array, phi_linear_2, phi_quadratic_1, phi_quadratic_2, phi_tabular_64_4, phi_array_64_4,
+                        phi_linear_3, phi_quadratic_3
+                        )
 import matplotlib.pyplot as plt
 ##############################################################################
 
@@ -80,8 +82,10 @@ def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="r
 
     if arg_phi == 'phi_array':
         phi = phi_array
+    elif arg_phi == 'phi_linear':
+        phi = phi_linear_3
     elif arg_phi == 'phi_quadratic':
-        phi = phi_quadratic_1
+        phi = phi_quadratic_3
     else:
         phi = phi_array
 

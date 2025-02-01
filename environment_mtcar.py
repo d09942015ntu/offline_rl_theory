@@ -8,11 +8,11 @@ import matplotlib.pyplot as plt
 
 class EnvMTCar(object):
     def __init__(self, H=60, seed=0):
-        self.env = gym.make('MountainCarContinuous-v0')
+        self.env = gym.make('MountainCar-v0')
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
         self.H = H
-        self.A = list(np.linspace(-1,1,10))
+        self.A = list(range(3))
 
     def reset_rng(self, seed=0):
         self.seed = seed
@@ -25,7 +25,7 @@ class EnvMTCar(object):
         return self.rng.choice(self.A)
 
     def get_r_sn(self, s, a):
-        sn, r, done, _, _ = self.env.step([a])
+        sn, r, done, _, _ = self.env.step(a)
         return r, sn, done
 
     def gen_random_trajs(self, N, length, labeled):
@@ -62,4 +62,4 @@ class EnvMTCar(object):
 
 if __name__ == '__main__':
     env = EnvMTCar()
-    results = env.gen_dataset(N1=50, N2=100, H=100)
+    results = env.gen_dataset(N1=500, N2=100, H=200)

@@ -10,7 +10,7 @@ from environment_kernel import EnvKernel
 from environment_kernel2 import EnvKernel2
 from environment_carpole import EnvCarpole
 from pds_kernel import (PDSKernel, kernel_gaussian, kernel_linear,
-                        phi_tuple, phi_array, phi_linear_2, phi_quadratic_2)
+                        phi_tuple, phi_array, phi_linear_2, phi_quadratic_2, phi_cubic_2)
 import matplotlib.pyplot as plt
 ##############################################################################
 
@@ -82,6 +82,8 @@ def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="r
         phi = phi_linear_2
     elif arg_phi == 'phi_quadratic':
         phi = phi_quadratic_2
+    elif arg_phi == 'phi_cubic':
+        phi = phi_cubic_2
     else:
         phi = phi_array
 
@@ -116,20 +118,20 @@ def main():
     parser = argparse.ArgumentParser(description="Process some inputs.")
 
     parser.add_argument('--kernel', type=str,  choices=['kernel_linear', 'kernel_gaussian'], default='kernel_linear')
-    parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_linear','phi_quadratic'], default='phi_quadratic')
+    parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_linear','phi_quadratic','phi_cubic'], default='phi_cubic')
     parser.add_argument('--output_dir', type=str,  default='results')
-    parser.add_argument('--repeat', type=int,  default=1)
+    parser.add_argument('--repeat', type=int,  default=5)
     parser.add_argument('--n1s', type=int, default=5)
     parser.add_argument('--n2s', type=int, default=6)
+
+    parser.add_argument('--n1s', type=int, nargs='+', default=[20,50,100,200])
+    parser.add_argument('--n2s', type=int, nargs='+', default= [10,20,50,100,200,500])
 
     # Parse the arguments
     args = parser.parse_args()
 
-    # Call the function with arguments
-    n1s = [20,50,100,200][:args.n1s]
-    n2s = [10,20,50,100,200,500][:args.n2s]
 
-    run(n1s, n2s, args.kernel, args.phi, args.output_dir, args.repeat)
+    run(args.n1s, args.n2s, args.kernel, args.phi, args.output_dir, args.repeat)
 
 if __name__ == "__main__":
     main()

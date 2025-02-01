@@ -224,15 +224,40 @@ def phi_quadratic_1(s, a):
 def phi_linear_2(s, a):
     s = np.array(s)
     a = np.array([a==0,a==1]).astype(float)
+    z = tuple(np.concatenate([s,a,[1]]).flatten())
+    return z
+
+def phi_quadratic_2(s, a):
+    s = list(s)
+    a = np.array([a==0,a==1]).astype(float)
+    z1 = np.concatenate([s,a,[1]])
+    z2 = np.matmul(z1[:,np.newaxis],z1[np.newaxis,:])
+    z2 = tuple(np.triu(z2).flatten())
+    return z2
+
+def phi_cubic_2(s, a):
+    s = list(s)
+    a = np.array([a==0,a==1]).astype(float)
+    z1 = np.concatenate([s,a,[1]])
+    Z2 = np.matmul(z1[:,np.newaxis],z1[np.newaxis,:])
+    z2 = np.triu(Z2).flatten()
+    Z3 = np.matmul(z2[:,np.newaxis],z1[np.newaxis,:])
+    z3 = tuple(np.triu(Z3).flatten())
+    return z3
+
+
+def phi_linear_3(s, a):
+    s = np.array(s)
+    a = np.array([a==0,a==1, a==2]).astype(float)
     z = tuple(np.matmul(s[:,np.newaxis],a[np.newaxis,:]).flatten())
     z = np.concatenate([z,[1]])
     return z
 
 
 
-def phi_quadratic_2(s, a):
+def phi_quadratic_3(s, a):
     s = list(s)
-    a = np.array([a==0,a==1]).astype(float)
+    a = np.array([a==0,a==1, a==2]).astype(float)
     z1 = np.concatenate([s,a,[1]])
     z2 = tuple(np.matmul(z1[:,np.newaxis],z1[np.newaxis,:]).flatten())
     return z2

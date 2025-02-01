@@ -114,8 +114,8 @@ def main():
     # Create the parser
     parser = argparse.ArgumentParser(description="Process some inputs.")
 
-    parser.add_argument('--kernel', type=str,  choices=['kernel_linear', 'kernel_gaussian'], default='kernel_linear')
-    parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_tabular'], default='phi_tabular')
+    parser.add_argument('--kernel', type=str,  choices=['kernel_linear', 'kernel_gaussian'], default='kernel_gaussian')
+    parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_tabular'], default='phi_array')
     parser.add_argument('--output_dir', type=str,  default='results')
     parser.add_argument('--repeat', type=int,  default=10)
     parser.add_argument('--n1s', type=int, default=5)

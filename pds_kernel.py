@@ -242,7 +242,7 @@ def phi_cubic_2(s, a):
     Z2 = np.matmul(z1[:,np.newaxis],z1[np.newaxis,:])
     z2 = np.triu(Z2).flatten()
     Z3 = np.matmul(z2[:,np.newaxis],z1[np.newaxis,:])
-    z3 = tuple(np.triu(Z3).flatten())
+    z3 = tuple(Z3.flatten())
     return z3
 
 

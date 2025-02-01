@@ -136,6 +136,11 @@ def main():
     args = parser.parse_args()
 
 
+    os.makedirs(args.output_dir, exist_ok=True)
+    current_pid = str(os.getpid())
+    with open(os.path.join(args.output_dir,f"pid_{current_pid}.txt"), 'w') as f:
+        f.write(str(os.getpid()))
+
     run(args.n1s, args.n2s, args.kernel, args.phi, args.output_dir, args.seed_start, args.repeat, args.repeat2)
 
 if __name__ == "__main__":

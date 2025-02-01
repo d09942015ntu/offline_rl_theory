@@ -17,10 +17,10 @@ def visualize_reward():
     n1s = [50,100]
     n2s = [10,20,50,100,200,500]
     kernels=[
-        "kernel_linear",
-        "kernel_quadratic",
-        "kernel_cubic",
         "kernel_gaussian",
+        "kernel_cubic",
+        "kernel_quadratic",
+        "kernel_linear",
     ]
 
     for n1 in n1s:
@@ -55,7 +55,7 @@ def visualize_distribution_theory_tikz(kernels, n2s, r_vals, n1):
     grid=major,
     grid style={dashed,gray!30},
     xmin=10, xmax=500,
-    ymin=0, ymax=100,
+    ymin=0, ymax=60,
     xlabel={$N_2$},
     ylabel={$V_1^{\\pi}(s)$},
     font=\\scriptsize,

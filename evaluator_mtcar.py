@@ -10,8 +10,9 @@ from environment_kernel import EnvKernel
 from environment_kernel2 import EnvKernel2
 from environment_carpole import EnvCarpole
 from environment_fzlake import EnvFrozenLake
+from environment_mtcar import EnvMTCar
 from pds_kernel import (PDSKernel, kernel_gaussian, kernel_linear,
-                        phi_tuple, phi_array, phi_linear_2, phi_quadratic_2, phi_tabular_64_4, phi_array_64_4)
+                        phi_tuple, phi_array, phi_linear_2, phi_quadratic_1, phi_quadratic_2, phi_tabular_64_4, phi_array_64_4)
 import matplotlib.pyplot as plt
 ##############################################################################
 
@@ -61,9 +62,9 @@ def plot_result(n2s, r1s, r_rand, fname):
 def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="results", repeat=1):
     arg_str=f"n1s={n1s},n2s={n2s}, arg_kernel={arg_kernel},arg_phi={arg_phi}, output_dir={output_dir}, repeat={repeat}"
     print(arg_str)
-    H = 100
+    H = 20
     envs = {
-            'carpole' : EnvFrozenLake(H=H),
+            'carpole' : EnvMTCar(H=H),
             #'kernel_bandit': EnvKernelBandit(s_size=s_size, H=H),
             #'linear': EnvLinear(s_size=s_size, H=H),
             }
@@ -78,9 +79,9 @@ def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="r
         kernel = kernel_gaussian
 
     if arg_phi == 'phi_array':
-        phi = phi_array_64_4
-    elif arg_phi == 'phi_tabular':
-        phi = phi_tabular_64_4
+        phi = phi_array
+    elif arg_phi == 'phi_quadratic':
+        phi = phi_quadratic_1
     else:
         phi = phi_array
 
@@ -115,11 +116,12 @@ def main():
     parser = argparse.ArgumentParser(description="Process some inputs.")
 
     parser.add_argument('--kernel', type=str,  choices=['kernel_linear', 'kernel_gaussian'], default='kernel_linear')
-    parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_tabular'], default='phi_tabular')
+    parser.add_argument('--phi', type=str,  choices=['phi_array', 'phi_quadratic'], default='phi_quadratic')
     parser.add_argument('--output_dir', type=str,  default='results')
     parser.add_argument('--repeat', type=int,  default=1)
-    parser.add_argument('--n1s', type=int, nargs='+', default=[500])
-    parser.add_argument('--n2s', type=int, nargs='+', default=[100,200,500,1000,2000])
+    parser.add_argument('--n1s', type=int, nargs='+', default=[500, 1000])
+    #parser.add_argument('--n2s', type=int, nargs='+', default="100 200 500 1000 2000")
+    parser.add_argument('--n2s', type=int, nargs='+', default=[100])
 
     # Parse the arguments
     args = parser.parse_args()

@@ -197,6 +197,7 @@ def phi_array(s, a):
     z = tuple(z)
     return z
 
+
 #def phi_linear(s, a):
 #    s = list(s)
 #    z = s+[a]+[1]
@@ -213,6 +214,12 @@ def phi_tabular_64_4(s,a):
     z[s,a] = 1
     z = z.flatten()
     return z
+
+def phi_quadratic_1(s, a):
+    s = list(s)
+    z1 = np.array(s+[a, 1])
+    z2 = tuple(np.matmul(z1[:,np.newaxis],z1[np.newaxis,:]).flatten())
+    return z2
 
 def phi_linear_2(s, a):
     s = np.array(s)

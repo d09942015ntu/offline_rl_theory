@@ -61,7 +61,7 @@ def plot_result(n2s, r1s, r_rand, fname):
 def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="results", repeat=1):
     arg_str=f"n1s={n1s},n2s={n2s}, arg_kernel={arg_kernel},arg_phi={arg_phi}, output_dir={output_dir}, repeat={repeat}"
     print(arg_str)
-    H = 20
+    H = 50
     envs = {
             'carpole' : EnvFrozenLake(H=H),
             #'kernel_bandit': EnvKernelBandit(s_size=s_size, H=H),
@@ -127,7 +127,7 @@ def main():
     # Call the function with arguments
     #n1s = [1000,200,500,1000][:args.n1s]
     #n2s = [10,20,50,100,200,500][:args.n2s]
-    n1s = [200][:args.n1s]
+    n1s = [500][:args.n1s]
     n2s = [200,500,1000][:args.n2s]
 
     run(n1s, n2s, args.kernel, args.phi, args.output_dir, args.repeat)

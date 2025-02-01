@@ -6,14 +6,13 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-class EnvFrozenLake(object):
+class EnvMTCar(object):
     def __init__(self, H=60, seed=0):
-        self.env = gym.make('FrozenLake-v1', desc=None, map_name="4x4", is_slippery=False)
+        self.env = gym.make('MountainCarContinuous-v0')
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
         self.H = H
-        self.A = list(range(4))
-        self.S = list(range(16))
+        self.A = list(np.linspace(-1,1,10))
 
     def reset_rng(self, seed=0):
         self.seed = seed
@@ -26,7 +25,7 @@ class EnvFrozenLake(object):
         return self.rng.choice(self.A)
 
     def get_r_sn(self, s, a):
-        sn, r, done, _, _ = self.env.step(a)
+        sn, r, done, _, _ = self.env.step([a])
         return r, sn, done
 
     def gen_random_trajs(self, N, length, labeled):
@@ -62,5 +61,5 @@ class EnvFrozenLake(object):
 
 
 if __name__ == '__main__':
-    env = EnvFrozenLake()
-    results = env.gen_dataset(N1=50, N2=100, H=20)
+    env = EnvMTCar()
+    results = env.gen_dataset(N1=50, N2=100, H=100)

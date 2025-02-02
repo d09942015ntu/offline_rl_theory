@@ -30,8 +30,8 @@ for n2s in ${n2ss[@]}; do
   #python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_linear --output_dir=results/kernel_linear_50 --repeat=50 --n1s 50  --n2s ${n2s} &
   #python3 evaluator_carpole.py --kernel=kernel_gaussian --phi=phi_array --output_dir=results/kernel_gaussian_50 --repeat=50 --n1s 50  --n2s ${n2s} &
 
-  python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_cubic --output_dir=results/kernel_cubic_200 --repeat=50 --n1s 200  --n2s ${n2s} &
-  python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_quadratic --output_dir=results/kernel_quadratic_200 --repeat=50 --n1s 200  --n2s ${n2s} &
-  python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_linear --output_dir=results/kernel_linear_200 --repeat=50 --n1s 200  --n2s ${n2s} &
-  python3 evaluator_carpole.py --kernel=kernel_gaussian --phi=phi_array --output_dir=results/kernel_gaussian_200 --repeat=50 --n1s 200  --n2s ${n2s} &
+  python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_cubic --output_dir=results/kernel_cubic_20 --repeat=50 --n1s 20  --n2s ${n2s} &
+  python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_quadratic --output_dir=results/kernel_quadratic_20 --repeat=50 --n1s 20  --n2s ${n2s} &
+  python3 evaluator_carpole.py --kernel=kernel_linear --phi=phi_linear --output_dir=results/kernel_linear_20 --repeat=50 --n1s 20  --n2s ${n2s} &
+  python3 evaluator_carpole.py --kernel=kernel_gaussian --phi=phi_array --output_dir=results/kernel_gaussian_20 --repeat=50 --n1s 20  --n2s ${n2s} &
 done

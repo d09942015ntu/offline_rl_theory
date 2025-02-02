@@ -53,7 +53,7 @@ def run():
     H = 8
     s_size = 8
     envs = {
-            'kernel2' : EnvKernel2(s_size=s_size,H=H),
+            'kernel2' : EnvKernel(s_size=s_size,H=H),
             #'kernel_bandit': EnvKernelBandit(s_size=s_size, H=H),
             #'linear': EnvLinear(s_size=s_size, H=H),
             }
@@ -80,7 +80,7 @@ def run():
             for n2 in n2s:
                 r1 = env_experiments(env, pds, n1, n2, H)
                 r1s.append(r1)
-            fname = f"results/env_{ekey}_n1_{n1}.png"
+            fname = f"results_new/env_{ekey}_n1_{n1}.png"
             plot_result(n2s, r1s, r_rand, fname)
 
 if __name__ == "__main__":

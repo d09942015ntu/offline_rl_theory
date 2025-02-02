@@ -14,7 +14,7 @@ colors = [
 ]
 
 def visualize_reward():
-    n1s = [50,100]
+    n1s = [20,50,100,200]
     n2s = [10,20,50,100,200,500]
     kernels=[
         "kernel_gaussian",
@@ -37,14 +37,16 @@ def visualize_reward():
 def visualize_distribution_theory_tikz(kernels, n2s, r_vals, n1):
     f = open(f"outputs/plot_exp2_n1_{n1}.tex","w")
     fdict={
+        20:"$N_1=20$",
         50:"$N_1=50$",
         100:"$N_1=100$",
+        200: "$N_1=200$",
     }
     k1_vals={
         "kernel_linear": "\\phi_{\\text{lin}}(z)",
         "kernel_quadratic": "\\phi_{\\text{quad}}(z)",
         "kernel_cubic": "\\phi_{\\text{cub}}(z)",
-        "kernel_gaussian": "\\phi_{\\text{K}}(z)",
+        "kernel_gaussian": "\\phi_{K}(z)",
     }
     f.write("""
 \\begin{tikzpicture}
@@ -55,7 +57,7 @@ def visualize_distribution_theory_tikz(kernels, n2s, r_vals, n1):
     grid=major,
     grid style={dashed,gray!30},
     xmin=10, xmax=500,
-    ymin=0, ymax=60,
+    ymin=0, ymax=70,
     xlabel={$N_2$},
     ylabel={$V_1^{\\pi}(s)$},
     font=\\scriptsize,

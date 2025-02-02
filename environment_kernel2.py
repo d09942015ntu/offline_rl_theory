@@ -29,13 +29,13 @@ class EnvKernel2(object):
             R.append(self.rng.choice(list(range(self.s_size))))
         return R
 
-    def _get_r(self, s, a):
-        r = 0
-        for si, ai in enumerate(self._R):
-            #normalizing_const = math.sqrt(math.pi / self.alpha)
-            #r += math.exp(- self.alpha * ((s - si) ** 2 + (a - ai) ** 2 ) )/normalizing_const
-            r += self._kernel((s, a), (si, ai))
-        return r
+    #def _get_r(self, s, a):
+    #    r = 0
+    #    for si, ai in enumerate(self._R):
+    #        #normalizing_const = math.sqrt(math.pi / self.alpha)
+    #        #r += math.exp(- self.alpha * ((s - si) ** 2 + (a - ai) ** 2 ) )/normalizing_const
+    #        r += self._kernel((s, a), (si, ai))
+    #    return r
 
     def _get_random_states(self):
         line_space = np.linspace(0, self.s_size, self._num_samples)
@@ -61,6 +61,7 @@ class EnvKernel2(object):
             #normalizing_const = math.sqrt(math.pi / self.alpha)
             #r += math.exp(- self.alpha * ((s - si) ** 2 + (a - ai) ** 2 ) )/normalizing_const
             r += self._kernel((s, a), (si, ai))
+        r = r/len(self._R)
         return r
 
     #def _get_r(self, s, a):

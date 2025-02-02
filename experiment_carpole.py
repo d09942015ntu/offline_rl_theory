@@ -6,7 +6,6 @@ import argparse
 
 from environment_carpole import EnvCarpole
 from pds_kernel import (PDSKernel, kernel_gaussian, kernel_linear, phi_array, phi_linear_2, phi_quadratic_2, phi_cubic_2)
-##############################################################################
 
 
 def evaluate(env, pi_func, repeat):
@@ -46,12 +45,8 @@ def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="r
     H = 100
     envs = {
             'carpole' : EnvCarpole(H=H),
-            #'kernel_bandit': EnvKernelBandit(s_size=s_size, H=H),
-            #'linear': EnvLinear(s_size=s_size, H=H),
             }
 
-    #n1s = [10,20,50,100,200]
-    #n2s = [10,20,50,100,200,500]
     if arg_kernel == 'kernel_gaussian':
         kernel = kernel_gaussian
     elif arg_kernel == 'kernel_linear':

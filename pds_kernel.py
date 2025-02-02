@@ -3,12 +3,6 @@ import math
 import numpy as np
 
 
-##############################################################################
-# Placeholder for your chosen kernel function K(z1, z2):
-# For instance, if you use an RBF kernel, or polynomial, or finite-dimensional
-# embedding, you can define it here.
-##############################################################################
-
 class RewardEval(object):
     def __init__(self, phi, kernel, Zh, lambda_inv, alpha, lamda, Aspace, B, h, H):
         self.Zh = Zh
@@ -186,13 +180,6 @@ def phi_array(s, a):
     z = tuple(z)
     return z
 
-
-# def phi_linear(s, a):
-#    s = list(s)
-#    z = s+[a]+[1]
-#    z = tuple(z)
-#    return z
-
 def phi_array_64_4(s, a):
     z = tuple((s, a))
     return z
@@ -282,52 +269,7 @@ def evaluate(env, pi_func):
     return np.average(R1)
 
 
-##############################################################################
-
-
-def run_debug_kernel_bandit():
-    H = 10
-    N1 = 100
-    N2 = 10
-    env = EnvKernelBandit(s_size=8, H=H)
-    env.reset_rng(seed=0)
-    D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
-    print(env.H)
-    pds = PDSKernel(env=env, kernel=kernel_gaussian, phi=phi_tuple)
-    pi_bandit_hat, pi_hat = pds.data_sharing_kernel_approx(D1, D2)
-
-    def random_pi(h, s):
-        return env.random_pi()
-
-    print("evaluate")
-    R1 = evaluate(env=env, pi_func=pi_bandit_hat)
-    R2 = evaluate(env=env, pi_func=pi_hat)
-    Rrand = evaluate(env=env, pi_func=random_pi)
-    print(f"R1={R1}, R2={R2}, Rrand={Rrand}")
-
-
-def run_debug_linear():
-    H = 10
-    N1 = 100
-    N2 = 10
-    env = EnvLinear(s_size=8, H=H)
-    env.reset_rng(seed=0)
-    D1, D2 = env.gen_dataset(N1=N1, N2=N2, H=H)
-    print(env.H)
-    pds = PDSKernel(env=env, kernel=kernel_gaussian, phi=phi_tuple)
-    pi_bandit_hat, pi_hat = pds.data_sharing_kernel_approx(D1, D2)
-
-    def random_pi(h, s):
-        return env.random_pi()
-
-    print("evaluate")
-    R1 = evaluate(env=env, pi_func=pi_bandit_hat)
-    R2 = evaluate(env=env, pi_func=pi_hat)
-    Rrand = evaluate(env=env, pi_func=random_pi)
-    print(f"R1={R1}, R2={R2}, Rrand={Rrand}")
-
 
 if __name__ == "__main__":
-    run_debug_kernel_bandit()
     run_debug_linear()
     pass

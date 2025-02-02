@@ -5,7 +5,6 @@ import numpy as np
 
 from environment_asym import EnvAsym
 from pds_kernel import PDSKernel, kernel_gaussian, phi_tuple
-##############################################################################
 
 
 def evaluate(env, pi_func):
@@ -41,15 +40,9 @@ def run():
     H = 8
     s_size = 8
     envs = {
-            'kernel2' : EnvAsym(s_size=s_size, H=H),
-            #'kernel_bandit': EnvKernelBandit(s_size=s_size, H=H),
-            #'linear': EnvLinear(s_size=s_size, H=H),
+            'kernel' : EnvAsym(s_size=s_size, H=H),
             }
 
-    #n1s = [1, 2, 5, 10, 20, 50, 100, 200, 500]
-    ##n1s = [200, 500, 1000]
-    #n2s = [1, 2, 5, 10, 20, 50, 100, 200, 500]
-    #n2s = [10]
 
     n1s = [10,20,50,100,200]
     n2s = [10,20,50,100,200,500]

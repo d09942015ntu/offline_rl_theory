@@ -1,17 +1,18 @@
 from collections import defaultdict
 import math
 
+import matplotlib.pyplot as plt
 import numpy as np
 
-import matplotlib.pyplot as plt
 
-class EnvKernelBandit(object):
+class EnvAsym(object):
     def __init__(self, H=6, s_size=6, seed=0):
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
         self.s_size = s_size
         self.H = H
         self.A = list(range(self.s_size))
+        self._a_trans = self._gen_a_trans()
         self._R = self._gen_r()
         self._s_coeff = 1.0
         self._variance = 3  # You can tune this
@@ -32,16 +33,22 @@ class EnvKernelBandit(object):
         line_space = np.linspace(0, self.s_size, self._num_samples)
         return round(self.rng.choice(line_space),2)
 
+    def _gaussian_sampler(self, mu, var=1.0 ):
+        line_space = np.linspace(mu-0.5*self.s_size, mu+0.5*self.s_size, self._num_samples)
+        p = [math.exp(- self._variance * (x - mu ) ** 2) for x in line_space ]
+        p = [x/sum(p) for x in p]
+        sample = self.rng.choice(line_space,p=p)
+        return sample % self.s_size
+
+    def _gen_a_trans(self):
+        return self.rng.permutation(list(range(self.s_size)))
+
     def _get_sn(self, s, a):
-        return self._get_random_states()
+        mu = (self._a_trans[a] + self._s_coeff*s) % self.s_size
+        return round(self._gaussian_sampler(mu, var=self._variance),2)
 
     def _get_r(self, s, a):
-        r = 0
-        for si, ai in enumerate(self._R):
-            #normalizing_const = math.sqrt(math.pi / self.alpha)
-            #r += math.exp(- self.alpha * ((s - si) ** 2 + (a - ai) ** 2 ) )/normalizing_const
-            r += self._kernel((s, a), (si, ai))
-        return r
+        return round(math.exp(- 0.2 * (s - math.ceil(self.s_size/2) ) ** 2),3)
 
     def reset_rng(self, seed=0):
         self.seed = seed
@@ -92,7 +99,7 @@ def visualize_distribution(s_primes, fname):
     plt.savefig(fname)
 
 def debug_trans():
-    env = EnvKernelBandit()
+    env = EnvAsym()
     for s in range(env.s_size):
         print(f"s0={s}")
         for a in range(env.s_size):
@@ -105,6 +112,6 @@ def debug_trans():
             print(f"s1={s}")
 
 if __name__ == '__main__':
-    env = EnvKernelBandit()
+    env = EnvAsym()
     results = env.gen_dataset()
     print(1)

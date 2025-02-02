@@ -4,14 +4,8 @@ import numpy as np
 import json
 import argparse
 
-from environment_linear import EnvLinear
-from environment_kernel_bandit import EnvKernelBandit
-from environment_kernel import EnvKernel
-from environment_kernel2 import EnvKernel2
 from environment_carpole import EnvCarpole
-from pds_kernel import (PDSKernel, kernel_gaussian, kernel_linear,
-                        phi_tuple, phi_array, phi_linear_2, phi_quadratic_2, phi_cubic_2)
-#import matplotlib.pyplot as plt
+from pds_kernel import (PDSKernel, kernel_gaussian, kernel_linear, phi_array, phi_linear_2, phi_quadratic_2, phi_cubic_2)
 ##############################################################################
 
 
@@ -44,26 +38,6 @@ def env_experiments(env, pds, n1, n2, H, output_dir, seed_start, repeat, repeat2
         f = open(fname,"w")
         f.write(json_str)
         f.close()
-        #print(f"Repeat={i}: N1={n1}, N2={n2}, R1={r1}")
-        #fname = f"{output_dir}/env_{ekey}_n1_{n1}.json"
-        #json.dump({'n2': n2s, 'r1': r1s, 'rrand': r_rand}, open(fname.replace(".png", ".json"), "w"), indent=2)
-
-    #r1 = np.average(r1s)
-    #print(f"Average: N1={n1}, N2={n2}, R1={r1}")
-    #return r1
-
-#def plot_result(n2s, r1s, r_rand, fname):
-#    plt.clf()
-#    plt.figure(figsize=(10, 6))
-#    plt.plot(n2s, r1s)
-#    plt.axhline(y=r_rand, color='r', linestyle='--', label=f'R_rand = {r_rand}')
-#    plt.xlabel('N2')
-#    plt.ylabel('R1')
-#    plt.title('Plot of R1 vs N2 with R_rand Line')
-#    plt.legend()
-#    plt.grid(True)
-#    plt.savefig(fname)
-#    json.dump({'n2':n2s, 'r1':r1s, 'rrand':r_rand},open(fname.replace(".png",".json"),"w"), indent=2 )
 
 
 def run(n1s,n2s, arg_kernel='kernel_gaussian',arg_phi='phi_array', output_dir="results", seed_start=0, repeat=1, repeat2=1):

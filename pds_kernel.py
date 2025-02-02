@@ -1,13 +1,6 @@
-import numpy as np
 import math
-from typing import Callable, List, Tuple, Dict
 
-
-from environment_linear import EnvLinear
-
-from environment_kernel_bandit import EnvKernelBandit
-import matplotlib.pyplot as plt
-import matplotlib
+import numpy as np
 
 
 ##############################################################################
@@ -17,7 +10,7 @@ import matplotlib
 ##############################################################################
 
 class RewardEval(object):
-    def __init__(self, phi, kernel, Zh, lambda_inv, alpha, lamda, Aspace, B, h , H):
+    def __init__(self, phi, kernel, Zh, lambda_inv, alpha, lamda, Aspace, B, h, H):
         self.Zh = Zh
         self.kernel = kernel
         self.lambda_inv = lambda_inv
@@ -28,7 +21,6 @@ class RewardEval(object):
         self.h = h
         self.H = H
         self.Aspace = Aspace
-
 
     def mean_kernel_sample(self, z):
         k_array = np.array([self.kernel(z, zi) for zi in self.Zh])
@@ -66,7 +58,6 @@ class PDSKernel(object):
         self.lamda2 = lamda2
         pass
 
-
     def build_kernel_matrix(self, Zh, lamda, Rh):
         N1 = len(Zh)
         # Build kernel matrix K of size NxN
@@ -75,13 +66,13 @@ class PDSKernel(object):
             zi = Zh[i]  # combine s,a if needed
             for j in range(N1):
                 zj = Zh[j]
-                #print(f"zi,zj={zi},{zj}")
+                # print(f"zi,zj={zi},{zj}")
                 K[i, j] = self.kernel(zi, zj)
 
         lambda_inv = np.linalg.inv(K + lamda * np.eye(len(Zh)))
-        #try:
+        # try:
         alpha = lambda_inv.dot(Rh)
-        #except:
+        # except:
         #    print(1)
         return K, lambda_inv, alpha
 
@@ -110,11 +101,11 @@ class PDSKernel(object):
             lambda_inv = np.linalg.inv(K + self.lamda1 * np.eye(len(Sh)))
             alpha = lambda_inv.dot(Rh)
 
-            reward_fn.append(RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, self.lamda1, self.env.A, self.beta1, h, self.env.H))
+            reward_fn.append(
+                RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, self.lamda1, self.env.A, self.beta1, h,
+                           self.env.H))
 
         return reward_fn
-
-
 
     def relabel_unlabeled_data(self, D1, D2, reward_fn, relabel_D1=True):
 
@@ -123,7 +114,7 @@ class PDSKernel(object):
             Dtilde.append([])
             reward_fn_h = reward_fn[h]
 
-            for (s_h_t, a_h_t, r_pess ) in D1[h]:
+            for (s_h_t, a_h_t, r_pess) in D1[h]:
                 if relabel_D1:
                     r_pess = reward_fn_h.Zhat_h_func(self.phi(s_h_t, a_h_t))
                 Dtilde[-1].append((s_h_t, a_h_t, r_pess))
@@ -134,8 +125,6 @@ class PDSKernel(object):
 
         return Dtilde
 
-
-
     def pevi_kernel_approx(self, Dtheta):
 
         rl_fn = []
@@ -145,27 +134,25 @@ class PDSKernel(object):
 
             Sh, Ah, Rh, Zh = self.data_preprocessing(Dtheta, h)
 
-
             if len(rl_fn) > 0:
                 Rh_p_V = []
                 for r in Rh:
                     Rh_p_V.append(r)
-                for i,s in enumerate(Sh1):
+                for i, s in enumerate(Sh1):
                     Rh_p_V[i] += rl_fn[0].Vhat_h_func(s)
-                #Rh_p_V = [r + rl_fn[0].Vhat_h_func(s) for r,s in zip(Rh, Sh1)]
+                # Rh_p_V = [r + rl_fn[0].Vhat_h_func(s) for r,s in zip(Rh, Sh1)]
             else:
                 Rh_p_V = Rh
 
             K, lambda_inv, alpha = self.build_kernel_matrix(Zh, self.lamda2, Rh_p_V)
 
-            rewad_eval =  RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, self.lamda2, self.env.A, self.beta2, h, self.env.H)
+            rewad_eval = RewardEval(self.phi, self.kernel, Zh, lambda_inv, alpha, self.lamda2, self.env.A, self.beta2,
+                                    h, self.env.H)
 
-            rl_fn.insert(0,rewad_eval)
+            rl_fn.insert(0, rewad_eval)
             Sh1 = Sh.tolist()
 
-
         return rl_fn
-
 
     def data_sharing_kernel_approx(self, D1, D2):
         # 1) Learn the reward function \hat{\theta}_h
@@ -182,109 +169,119 @@ class PDSKernel(object):
             return max_a
 
         def pi_rl_fn(h, s):
-            _, max_a  = max([(rl_fn[h].Qhat_h_func(s, a), a) for a in self.env.A], key=lambda x: x[0])
+            _, max_a = max([(rl_fn[h].Qhat_h_func(s, a), a) for a in self.env.A], key=lambda x: x[0])
             return max_a
 
-        return  pi_rl_fn, pi_reward_hat
+        return pi_rl_fn, pi_reward_hat
+
 
 def phi_tuple(s, a):
-    z = (s,a)
+    z = (s, a)
     return z
+
 
 def phi_array(s, a):
     s = list(s)
-    z = s+[a]
+    z = s + [a]
     z = tuple(z)
     return z
 
 
-#def phi_linear(s, a):
+# def phi_linear(s, a):
 #    s = list(s)
 #    z = s+[a]+[1]
 #    z = tuple(z)
 #    return z
 
 def phi_array_64_4(s, a):
-    z = tuple((s,a))
+    z = tuple((s, a))
     return z
 
-def phi_tabular_64_4(s,a):
-    #print(f"s={s}, a={a}")
-    z = np.zeros((64,4))
-    z[s,a] = 1
+
+def phi_tabular_64_4(s, a):
+    # print(f"s={s}, a={a}")
+    z = np.zeros((64, 4))
+    z[s, a] = 1
     z = z.flatten()
     return z
 
+
 def phi_quadratic_1(s, a):
     s = list(s)
-    z1 = np.array(s+[a, 1])
-    z2 = tuple(np.matmul(z1[:,np.newaxis],z1[np.newaxis,:]).flatten())
+    z1 = np.array(s + [a, 1])
+    z2 = tuple(np.matmul(z1[:, np.newaxis], z1[np.newaxis, :]).flatten())
     return z2
+
 
 def phi_linear_2(s, a):
     s = np.array(s)
-    a = np.array([a==0,a==1]).astype(float)
-    z = tuple(np.concatenate([s,a,[1]]).flatten())
+    a = np.array([a == 0, a == 1]).astype(float)
+    z = tuple(np.concatenate([s, a, [1]]).flatten())
     return z
+
 
 def phi_quadratic_2(s, a):
     s = list(s)
-    a = np.array([a==0,a==1]).astype(float)
-    z1 = np.concatenate([s,a,[1]])
-    z2 = np.matmul(z1[:,np.newaxis],z1[np.newaxis,:])
+    a = np.array([a == 0, a == 1]).astype(float)
+    z1 = np.concatenate([s, a, [1]])
+    z2 = np.matmul(z1[:, np.newaxis], z1[np.newaxis, :])
     z2 = tuple(np.triu(z2).flatten())
     return z2
 
+
 def phi_cubic_2(s, a):
     s = list(s)
-    a = np.array([a==0,a==1]).astype(float)
-    z1 = np.concatenate([s,a,[1]])
-    Z2 = np.matmul(z1[:,np.newaxis],z1[np.newaxis,:])
+    a = np.array([a == 0, a == 1]).astype(float)
+    z1 = np.concatenate([s, a, [1]])
+    Z2 = np.matmul(z1[:, np.newaxis], z1[np.newaxis, :])
     z2 = np.triu(Z2).flatten()
-    Z3 = np.matmul(z2[:,np.newaxis],z1[np.newaxis,:])
+    Z3 = np.matmul(z2[:, np.newaxis], z1[np.newaxis, :])
     z3 = tuple(Z3.flatten())
     return z3
 
 
 def phi_linear_3(s, a):
     s = np.array(s)
-    a = np.array([a==0,a==1, a==2]).astype(float)
-    z = tuple(np.matmul(s[:,np.newaxis],a[np.newaxis,:]).flatten())
-    z = np.concatenate([z,[1]])
+    a = np.array([a == 0, a == 1, a == 2]).astype(float)
+    z = tuple(np.matmul(s[:, np.newaxis], a[np.newaxis, :]).flatten())
+    z = np.concatenate([z, [1]])
     return z
-
 
 
 def phi_quadratic_3(s, a):
     s = list(s)
-    a = np.array([a==0,a==1, a==2]).astype(float)
-    z1 = np.concatenate([s,a,[1]])
-    z2 = tuple(np.matmul(z1[:,np.newaxis],z1[np.newaxis,:]).flatten())
+    a = np.array([a == 0, a == 1, a == 2]).astype(float)
+    z1 = np.concatenate([s, a, [1]])
+    z2 = tuple(np.matmul(z1[:, np.newaxis], z1[np.newaxis, :]).flatten())
     return z2
 
-def kernel_linear(z1,z2):
-    return np.dot(z1,z2)
+
+def kernel_linear(z1, z2):
+    return np.dot(z1, z2)
 
 
 def kernel_gaussian(z1, z2, variance=3):
-    #normalizing_const = math.sqrt(math.pi / variance)
+    # normalizing_const = math.sqrt(math.pi / variance)
     dist = 0
-    for z1i, z2i in zip(z1,z2):
-        dist += (z1i -z2i)**2
-    return math.exp(- variance * dist) #/ normalizing_const
+    for z1i, z2i in zip(z1, z2):
+        dist += (z1i - z2i) ** 2
+    return math.exp(- variance * dist)  # / normalizing_const
+
 
 def evaluate(env, pi_func):
     R1 = []
     for i in range(100):
         env.reset_rng(i)
         r1 = 0
-        sn =env.gen_init_states()
+        sn = env.gen_init_states()
         for h in range(env.H):
             a = pi_func(h, sn)
             r, sn = env.get_r_sn(sn, a)
             r1 += r
         R1.append(r1)
     return np.average(R1)
+
+
 ##############################################################################
 
 
@@ -301,6 +298,7 @@ def run_debug_kernel_bandit():
 
     def random_pi(h, s):
         return env.random_pi()
+
     print("evaluate")
     R1 = evaluate(env=env, pi_func=pi_bandit_hat)
     R2 = evaluate(env=env, pi_func=pi_hat)
@@ -321,6 +319,7 @@ def run_debug_linear():
 
     def random_pi(h, s):
         return env.random_pi()
+
     print("evaluate")
     R1 = evaluate(env=env, pi_func=pi_bandit_hat)
     R2 = evaluate(env=env, pi_func=pi_hat)

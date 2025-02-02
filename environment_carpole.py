@@ -1,10 +1,8 @@
 from collections import defaultdict
-import gym
-import math
 
+import gym
 import numpy as np
 
-import matplotlib.pyplot as plt
 
 class EnvCarpole(object):
     def __init__(self, H=60, seed=0):
